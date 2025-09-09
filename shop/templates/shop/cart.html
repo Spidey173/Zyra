@@ -1,0 +1,182 @@
+
+{% block content %}
+
+<style>
+  :root {
+    --bg-start: #0d1117;
+    --bg-end:   #161b22;
+    --card-bg:  rgba(255, 255, 255, 0.07);
+    --card-hover-bg: rgba(255, 255, 255, 0.12);
+    --primary:  #6e44ff;
+    --secondary:#ff4d94;
+    --text:     #e0d7ff;
+    --text-light: #f8f5ff;
+    --accent:   #00e0b0;
+    --shadow:   rgba(0, 0, 0, 0.4);
+  }
+
+  body {
+    margin: 0;
+    padding: 2rem 1rem;
+    background: radial-gradient(circle at top right, var(--bg-start), var(--bg-end));
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+    background: linear-gradient(90deg, var(--text-light), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .cart-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border-radius: 20px;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 12px 40px var(--shadow);
+    padding: 1.5rem;
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    padding: 1rem 0.75rem;
+    text-align: center;
+    color: var(--text-light);
+  }
+
+  th {
+    background: rgba(255, 255, 255, 0.1);
+    font-weight: 600;
+  }
+
+  tr + tr {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  tr:hover {
+    background: var(--card-hover-bg);
+  }
+
+  .total {
+    text-align: right;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 1.5rem 0;
+    color: var(--text-light);
+  }
+
+  .btn-custom {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.7rem 1.8rem;
+    border-radius: 50px;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text-light);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px var(--shadow);
+  }
+
+  .btn-primary {
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+  }
+
+  .btn-danger {
+    background: linear-gradient(45deg, #dc3545, #ff616f);
+  }
+
+  .btn-custom:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 30px rgba(255, 77, 148, 0.4);
+    border-color: transparent;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+  }
+
+  @media (max-width: 600px) {
+    .cart-container {
+      padding: 1rem;
+    }
+    th, td {
+      padding: 0.6rem;
+      font-size: 0.9rem;
+    }
+    .btn-custom {
+      padding: 0.6rem 1.2rem;
+      font-size: 0.9rem;
+    }
+  }
+</style>
+
+  <h1>Your Cart</h1>
+
+  {% if cart_items %}
+    <table>
+      <tr>
+        <th>Product</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Subtotal</th>
+        <th>Action</th>
+      </tr>
+      {% for item in cart_items %}
+      <tr>
+        <td>{{ item.product.name }}</td>
+        <td>₹{{ item.product.price }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>₹{{ item.subtotal }}</td>
+        <td>
+          <a
+            href="{% url 'remove_from_cart' item.product.pk %}"
+            class="btn-custom btn-danger">
+            Remove
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <p class="total">Total: ₹{{ total }}</p>
+
+    <!-- Proceed to Cash on Delivery -->
+    <form action="{% url 'proceed_to_payment' %}" method="post" style="text-align: center;">
+      {% csrf_token %}
+      <button type="submit" class="btn-custom btn-primary">
+        Proceed to Cash on Delivery
+      </button>
+    </form>
+  {% else %}
+    <p style="text-align: center; color: var(--text-light);">
+      Your cart is empty.
+    </p>
+  {% endif %}
+
+  <div style="text-align: center; margin-top: 2rem;">
+    <a href="{% url 'home' %}" class="btn-custom btn-primary">
+      Continue Shopping
+    </a>
+  </div>
+{% endblock %}
