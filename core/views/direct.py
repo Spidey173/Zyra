@@ -68,9 +68,11 @@ def direct_inbox(request, username=None):
 
     context = {
         'conversations': conversations,
+        'conversations_data': conversations_data,
         'conversations_json': json.dumps(conversations_data),
         'active_conversation': active_conversation,
         'active_partner': initial_partner,
+        'initial_messages': initial_messages,
         'initial_messages_json': json.dumps(initial_messages),
     }
     return render(request, 'core/direct.html', context)

@@ -144,12 +144,6 @@
 
                     <!-- Header Action Tools -->
                     <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-icon-round" onclick="startMockCall('audio')" title="Start Voice Call">
-                            <i class="bi bi-telephone text-white"></i>
-                        </button>
-                        <button type="button" class="btn btn-icon-round" onclick="startMockCall('video')" title="Start Video Call">
-                            <i class="bi bi-camera-video text-white"></i>
-                        </button>
                         <button type="button" class="btn btn-icon-round" id="toggleDetailsBtn" title="Conversation Details">
                             <i class="bi bi-info-circle text-white"></i>
                         </button>
@@ -339,36 +333,6 @@
     </div>
 </div>
 
-<div class="modal fade" id="mockCallModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
-        <div class="modal-content text-center p-4 overflow-hidden" style="background: #121212; border: 1px solid #262626; border-radius: 24px; box-shadow: 0 25px 80px rgba(0,0,0,0.9);">
-            <div class="call-avatar-pulse mx-auto mb-3" style="width: 90px; height: 90px;">
-                {% if active_partner.profile.get_profile_pic_url %}
-                    <img src="{{ active_partner.profile.get_profile_pic_url }}" class="w-100 h-100 rounded-circle" style="object-fit: cover;">
-                {% else %}
-                    <div class="w-100 h-100 rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="background: var(--story-gradient); font-size: 2.2rem;">
-                        {{ active_partner.username|default:"U"|slice:":1"|upper }}
-                    </div>
-                {% endif %}
-            </div>
-            <h5 class="text-white fw-bold mb-1">{{ active_partner.username|default:"User" }}</h5>
-            <p class="text-white-50 small mb-4" id="callModalStatus">Calling...</p>
-            
-            <div class="d-flex justify-content-center align-items-center gap-3">
-                <button type="button" class="btn btn-dark rounded-circle p-3 shadow" title="Mute Microphone">
-                    <i class="bi bi-mic-mute-fill text-white fs-5"></i>
-                </button>
-                <button type="button" class="btn btn-danger rounded-circle p-3 shadow" data-bs-dismiss="modal" title="End Call">
-                    <i class="bi bi-telephone-x-fill text-white fs-5"></i>
-                </button>
-                <button type="button" class="btn btn-dark rounded-circle p-3 shadow" title="Toggle Camera">
-                    <i class="bi bi-camera-video-off-fill text-white fs-5"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="modal fade" id="imageLightboxModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content bg-transparent border-0 text-center position-relative">
@@ -381,8 +345,8 @@
 <!-- =====================================================================
      DATA HYDRATION JSON
      ===================================================================== -->
-{{ initial_messages_json|json_script:"initial-messages-data" }}
-{{ conversations_json|json_script:"conversations-data" }}
+{{ initial_messages|json_script:"initial-messages-data" }}
+{{ conversations_data|json_script:"conversations-data" }}
 
 <!-- =====================================================================
      STYLES: INSTAGRAM DIRECT BESPOKE STYLING
@@ -1096,11 +1060,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Parse Initial Messages
     try {
-        const rawJson = document.getElementById('initial-messages-data').textContent;
-        const initialMessages = JSON.parse(rawJson);
-        if (Array.isArray(initialMessages)) {
-            initialMessages.forEach(msg => appendMessageDOM(msg));
-            ensureScrolledToBottom();
+        const dataEl = document.getElementById('initial-messages-data');
+        if (dataEl && dataEl.textContent) {
+            let initialMessages = JSON.parse(dataEl.textContent);
+            if (typeof initialMessages === 'string') {
+                initialMessages = JSON.parse(initialMessages);
+            }
+            if (Array.isArray(initialMessages)) {
+                initialMessages.forEach(msg => appendMessageDOM(msg));
+                ensureScrolledToBottom();
+            }
         }
     } catch (e) {
         console.error("Initial messages parse error:", e);
@@ -1809,27 +1778,6 @@ document.addEventListener('DOMContentLoaded', function() {
             img.src = url;
             const modal = new bootstrap.Modal(modalEl);
             modal.show();
-        }
-    };
-
-    // Simulated Calls
-    window.startMockCall = function(type) {
-        const modalEl = document.getElementById('mockCallModal');
-        const statusP = document.getElementById('callModalStatus');
-        if (statusP) {
-            statusP.textContent = type === 'video' ? 'Zyra Video Call...' : 'Zyra Voice Call...';
-        }
-        if (modalEl) {
-            const modal = new bootstrap.Modal(modalEl);
-            modal.show();
-        }
-    };
-
-    window.simulateVoiceNote = function() {
-        if (messageInput) {
-            messageInput.value = '🎙️ [Voice note: 0:04]';
-            messageInput.dispatchEvent(new Event('input'));
-            messageInput.focus();
         }
     };
 
