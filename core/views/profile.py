@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse
-from ..models import UserProfile, Post, Follow, Bookmark, Notification
+from ..models import UserProfile, Post, Like, Follow, Bookmark, Notification
 from ..forms import UserProfileForm
 
 @login_required
