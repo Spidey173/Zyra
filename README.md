@@ -2,26 +2,48 @@
 
 A modern, fast, and beginner-friendly social media web app inspired by Instagram. Built using **Python & Django 5**, **WebSockets (Django Channels)**, and **Neon PostgreSQL**.
 
+<div align="center">
+
+[![Live Demo](https://img.shields.io/badge/🌐%20Live%20Demo-zyra--fa4v.onrender.com-FF2E93?style=for-the-badge&logo=render&logoColor=white)](https://zyra-fa4v.onrender.com/)
+[![Django](https://img.shields.io/badge/Django-5.2-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![WebSockets](https://img.shields.io/badge/WebSockets-Django%20Channels-0c4b33?style=for-the-badge&logo=django&logoColor=white)](https://channels.readthedocs.io/)
+[![Neon Database](https://img.shields.io/badge/Neon-PostgreSQL-00e699?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
+
+### 🚀 **[👉 Click Here to Launch the Live Demo! 👈](https://zyra-fa4v.onrender.com/)**
+
+</div>
+
+---
+
+## 🔑 Demo Test Accounts
+
+You can register your own account on the signup page or test real-time messaging with the pre-configured accounts:
+
+| Username | Password | Role |
+| :--- | :--- | :--- |
+| **`Spidey`** | **`Spidey@173`** | Superuser / Admin |
+| **`Ash`** | **`Password123!`** | Tester / Chat Partner |
+
 ---
 
 ## 🌟 What Can You Do on Zyra?
 
 ### 💬 1. Instant Direct Messaging (Instagram Style)
-- **⚡ Super Fast Chat**: Real-time messaging with live typing indicators.
-- **✏️ Edit Messages**: Edit any message within 5 minutes.
-- **🗑️ Delete / Unsend**: Unsend any message anytime.
+- **⚡ Super Fast Chat**: Sub-30ms real-time messaging with live typing indicators.
+- **✏️ Edit Messages**: Edit any message within 5 minutes of sending.
+- **🗑️ Delete / Unsend**: Unsend messages for everyone anytime.
 - **❤️ Emoji Reactions**: Quick-react to messages with hearts and emojis.
-- **🟢 Live Online Status**: Shows *"Active now"* or *"Active 5m ago"* accurately.
+- **🟢 Live Online Status**: Shows *"Active now"* or accurate elapsed time (*"Active 5m ago"*).
 
 ### 📸 2. Feed, Reels & Stories
 - **📱 Home Feed**: Share photos, captions, and like with a double-tap ❤️.
 - **🎥 60fps Reels**: Vertical video scroll experience.
-- **⏳ 24h Stories**: Share photos/videos with music and an easy **Delete Story** button.
-- **💬 Comments & Likes**: Comment, like, and bookmark posts instantly.
+- **⏳ 24h Stories**: Share photos/videos with custom music and an active **Delete Story** option.
+- **💬 Comments & Likes**: Comment, like, and bookmark posts instantly with AJAX.
 
 ### 👤 3. Profiles & Social Graph
 - **Personalized Profile**: Add bio, pronouns, and custom avatar.
-- **Follow / Unfollow**: Follow creators and view follower lists.
+- **Follow / Unfollow**: Follow creators and browse follower lists.
 
 ---
 
@@ -57,17 +79,6 @@ Now open **http://127.0.0.1:8000** in your browser and enjoy Zyra! 🎉
 
 ---
 
-## 🔑 Demo Login Accounts
-
-You can register a new account on the signup page or log in with the test accounts:
-
-| Username | Password | Role |
-| :--- | :--- | :--- |
-| **`Spidey`** | **`Spidey@173`** | Superuser / Admin |
-| **`Ash`** | **`Password123!`** | Tester / Chat Partner |
-
----
-
 ## 📂 Project Structure
 
 ```text
@@ -77,6 +88,7 @@ Zyra/
 │   ├── consumers.py     # WebSocket logic for real-time messaging
 │   ├── models.py        # Database models (User, Post, Message, Story, etc.)
 │   ├── views/           # Views (Feed, Reels, Stories, Direct Chat, Profile)
+│   ├── services/        # Business logic & query optimization services
 │   └── urls.py          # App URL routes
 ├── templates/core/      # Modern dark-mode HTML templates
 ├── static/              # CSS styling, icons, and JavaScript
@@ -90,13 +102,13 @@ Zyra/
 
 ## ☁️ Live Cloud Deployment (Render + Neon)
 
-Zyra is 100% ready for free deployment on **Render**:
+Zyra is 100% configured for deployment on **Render**:
 
 1. Push your code to **GitHub**.
 2. Create a new **Web Service** on [Render Dashboard](https://dashboard.render.com/).
 3. Connect your repository and configure:
    - **Build Command**: `./build.sh`
-   - **Start Command**: `daphne -b 0.0.0.0 -p $PORT config.asgi:application`
+   - **Start Command**: `gunicorn -w 2 -k uvicorn.workers.UvicornWorker --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 50 --bind 0.0.0.0:$PORT config.asgi:application`
 4. Add your **Environment Variables**:
    - `DATABASE_URL`: `postgresql://<user>:<password>@<neon-host>/neondb?sslmode=require`
    - `PYTHON_VERSION`: `3.11.9`
@@ -108,7 +120,7 @@ Zyra is 100% ready for free deployment on **Render**:
 
 ## 💡 Tech Stack
 - **Backend**: Python 3.11+, Django 5.2
-- **Real-Time WebSockets**: Django Channels, Daphne ASGI
+- **Real-Time WebSockets**: Django Channels, Uvicorn / Daphne ASGI
 - **Database**: SQLite (Local) / Neon PostgreSQL (Production)
 - **Frontend**: HTML5, Vanilla CSS3 (Dark Glassmorphism), Bootstrap Icons
 
