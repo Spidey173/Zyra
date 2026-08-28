@@ -41,7 +41,8 @@
             {% endif %}
         </div>
 
-        <!-- Post Body / Media -->
+        <!-- Post Body / Media (Only rendered when post contains image or video) -->
+        {% if post.get_video_url or post.get_image_url %}
         <div class="post-body position-relative rounded-4 overflow-hidden mb-3" style="background: #000; border: 1px solid var(--border-subtle);">
             {% if post.get_video_url %}
                 <div class="post-video-container" style="border-radius: 0; border: none; margin-bottom: 0;">
@@ -58,6 +59,7 @@
             {% endif %}
             <i class="bi bi-heart-fill double-tap-heart"></i>
         </div>
+        {% endif %}
 
         <!-- Action Bar Icons -->
         <div class="post-actions d-flex align-items-center justify-content-between py-2 px-1 mb-2">
