@@ -10,6 +10,8 @@ from ..forms import UserProfileForm
 def user_profile(request, username):
     """User profile page with grid tabs (Posts, Reels, Saved) and Edit Profile modal."""
     profile_user = get_object_or_404(User.objects.select_related('profile'), username=username)
+    profile_user.profile.cached_followers_count = Follow.objects.filter(following=profile_user).count()
+    profile_user.profile.cached_following_count = Follow.objects.filter(follower=profile_user).count()
     posts = profile_user.posts.all().prefetch_related('likes', 'comments')
     
     is_following = Follow.objects.filter(follower=request.user, following=profile_user).exists()

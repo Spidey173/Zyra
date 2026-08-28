@@ -33,9 +33,6 @@ def direct_inbox(request, username=None):
     - Renders dual-column view: Conversations on left, active chat on right.
     """
     conversations = get_user_conversations(request.user)
-    for c in conversations:
-        c.partner = c.get_partner(request.user)
-        c.unread_count = c.get_unread_count(request.user)
     active_conversation = None
     initial_partner = None
 

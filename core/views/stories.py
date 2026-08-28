@@ -14,6 +14,10 @@ def create_story_view(request):
         caption = request.POST.get('caption', '').strip()
 
         if image or video:
+            if image:
+                from ..utils.media import compress_and_optimize_image
+                image = compress_and_optimize_image(image, max_dimension=1600, quality=85)
+
             Story.objects.create(
                 user=request.user,
                 image=image,

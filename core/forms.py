@@ -52,6 +52,13 @@ class UserProfileForm(forms.ModelForm):
         model = UserProfile
         fields = ['display_name', 'gender', 'bio', 'profile_pic']
 
+    def clean_profile_pic(self):
+        pic = self.cleaned_data.get('profile_pic')
+        if pic and hasattr(pic, 'file'):
+            from .utils.media import compress_and_optimize_image
+            return compress_and_optimize_image(pic, max_dimension=800, quality=85)
+        return pic
+
 class PostForm(forms.ModelForm):
     caption = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'What\'s on your mind?'}), required=False)
     image = forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control'}), required=False)
@@ -60,6 +67,13 @@ class PostForm(forms.ModelForm):
     class Meta:
         model = Post
         fields = ['caption', 'image', 'video']
+
+    def clean_image(self):
+        img = self.cleaned_data.get('image')
+        if img and hasattr(img, 'file'):
+            from .utils.media import compress_and_optimize_image
+            return compress_and_optimize_image(img, max_dimension=1600, quality=85)
+        return img
 
     def clean(self):
         cleaned_data = super().clean()

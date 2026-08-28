@@ -59,6 +59,8 @@ def send_message(sender, conversation_id, content='', image=None, post_id=None, 
     # Validate image
     if image:
         validate_media_file(image, media_types=('image',), max_size_mb=15)
+        from ..utils.media import compress_and_optimize_image
+        image = compress_and_optimize_image(image, max_dimension=1600, quality=85)
 
     # Validate shared post
     shared_post = None
@@ -112,8 +114,16 @@ def get_conversation_messages(conversation, user, before_id=None, since_id=None,
     - before_id: Returns messages with id < before_id for older history infinite scroll.
     - default: Returns latest limit messages in chronological order.
     """
-    # Verify user participation
-    if not conversation.participants.filter(user=user).exists():
+    # Verify user participation without extra query if already cached
+    has_access = False
+    if hasattr(conversation, 'current_user_participant') and conversation.current_user_participant:
+        has_access = True
+    elif hasattr(conversation, '_prefetched_objects_cache') and 'participants' in conversation._prefetched_objects_cache:
+        has_access = any(p.user_id == getattr(user, 'id', None) for p in conversation.participants.all())
+    else:
+        has_access = conversation.participants.filter(user=user).exists()
+
+    if not has_access:
         raise PermissionDenied("You do not have access to this conversation.")
 
     qs = conversation.messages.filter(is_deleted=False).select_related(
@@ -146,7 +156,9 @@ def mark_conversation_read(conversation, user):
     """
     Marks all received unread messages as read for user in this conversation.
     """
-    participant = conversation.participants.filter(user=user).first()
+    participant = getattr(conversation, 'current_user_participant', None)
+    if not participant:
+        participant = conversation.participants.filter(user=user).first()
     if not participant:
         return 0
 
@@ -156,7 +168,7 @@ def mark_conversation_read(conversation, user):
 
     # Update unread messages sent by others
     updated = conversation.messages.filter(
-        read_at__isnull=True
+        read_at__isnull=True, is_deleted=False
     ).exclude(sender=user).update(read_at=now)
 
     return updated
@@ -244,8 +256,10 @@ def toggle_reaction(message_id, user, emoji):
 def get_user_conversations(user):
     """
     Retrieves all visible conversations for a user, sorted by updated_at descending.
-    Prefetches participants and user profiles to eliminate N+1 queries.
+    Batches participants, last messages, and unread counts in memory to eliminate N+1 queries.
     """
+    from collections import defaultdict
+
     participations = list(ConversationParticipant.objects.filter(
         user=user, hidden_at__isnull=True
     ).select_related('conversation').order_by('-conversation__updated_at'))
@@ -254,17 +268,46 @@ def get_user_conversations(user):
     if not conv_ids:
         return []
 
-    conversations_dict = {
-        c.id: c for c in Conversation.objects.filter(id__in=conv_ids).prefetch_related(
-            'participants__user__profile'
-        )
-    }
+    # 1. Fetch all participants for these conversations
+    all_participants = list(ConversationParticipant.objects.filter(
+        conversation_id__in=conv_ids
+    ).select_related('user', 'user__profile'))
 
+    participants_by_conv = defaultdict(list)
+    user_part_by_conv = {}
+    for p in all_participants:
+        participants_by_conv[p.conversation_id].append(p)
+        if p.user_id == user.id:
+            user_part_by_conv[p.conversation_id] = p
+
+    # 2. Fetch recent messages to resolve last message and unread count
+    from ..models import Message
+    recent_messages = list(Message.objects.filter(
+        conversation_id__in=conv_ids, is_deleted=False
+    ).select_related('sender', 'sender__profile').order_by('conversation_id', '-created_at'))
+
+    last_msg_by_conv = {}
+    unread_counts = defaultdict(int)
+    for m in recent_messages:
+        if m.conversation_id not in last_msg_by_conv:
+            last_msg_by_conv[m.conversation_id] = m
+        user_p = user_part_by_conv.get(m.conversation_id)
+        if user_p and m.sender_id != user.id:
+            if not user_p.last_read_at or m.created_at > user_p.last_read_at:
+                unread_counts[m.conversation_id] += 1
+
+    # 3. Assemble pre-populated conversations
     conversations = []
+    conv_dict = {p.conversation_id: p.conversation for p in participations}
     for p in participations:
-        conv = conversations_dict.get(p.conversation_id)
-        if conv:
-            conv.current_user_participant = p
-            conversations.append(conv)
+        conv = conv_dict.get(p.conversation_id)
+        if not conv:
+            continue
+        other_parts = [part for part in participants_by_conv[conv.id] if part.user_id != user.id]
+        conv.partner = other_parts[0].user if other_parts else user
+        conv.current_user_participant = p
+        conv.cached_last_message = last_msg_by_conv.get(conv.id)
+        conv.unread_count = unread_counts[conv.id]
+        conversations.append(conv)
 
     return conversations

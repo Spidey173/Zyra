@@ -28,16 +28,15 @@ def home(request):
         form = PostForm()
 
     # Followed users
-    followed_users = Follow.objects.filter(follower=request.user).values_list('following', flat=True)
+    followed_users = list(Follow.objects.filter(follower=request.user).values_list('following', flat=True))
 
-    # Query feed posts (own + followed)
-    posts = Post.objects.filter(
-        Q(user__in=followed_users) | Q(user=request.user)
-    ).select_related('user', 'user__profile').prefetch_related('likes', 'comments')
-
-    # Fallback to all posts if feed is empty
-    if not posts.exists():
-        posts = Post.objects.all().select_related('user', 'user__profile').prefetch_related('likes', 'comments')
+    # Query feed posts (own + followed, or all if not following anyone)
+    if followed_users:
+        posts = Post.objects.filter(
+            Q(user_id__in=followed_users) | Q(user_id=request.user.id)
+        ).select_related('user', 'user__profile')
+    else:
+        posts = Post.objects.all().select_related('user', 'user__profile')
 
     # Pagination for infinite scroll (5 per page)
     paginator = Paginator(posts, 5)
@@ -50,6 +49,10 @@ def home(request):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'posts_html': ''})
         posts_page = paginator.page(paginator.num_pages)
+
+    # Prefetch likes and comments only for active page posts
+    from django.db.models import prefetch_related_objects
+    prefetch_related_objects(posts_page.object_list, 'likes', 'comments')
 
     # Batch interaction flags to avoid N+1 database queries
     post_ids = [p.id for p in posts_page]

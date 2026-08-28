@@ -20,15 +20,24 @@ class UserProfile(models.Model):
     profile_pic = models.ImageField(upload_to=generate_upload_path('avatars'), blank=True, null=True)
     last_seen = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['last_seen']),
+        ]
+
     def __str__(self):
         return f"{self.user.username}'s profile"
 
     @property
     def followers_count(self):
+        if hasattr(self, 'cached_followers_count'):
+            return self.cached_followers_count
         return Follow.objects.filter(following=self.user).count()
 
     @property
     def following_count(self):
+        if hasattr(self, 'cached_following_count'):
+            return self.cached_following_count
         return Follow.objects.filter(follower=self.user).count()
 
     @property
@@ -77,20 +86,32 @@ class Post(models.Model):
     caption = models.TextField(max_length=1000, blank=True)
     image = models.ImageField(upload_to=generate_upload_path('posts'), blank=True, null=True)
     video = models.FileField(upload_to=generate_upload_path('reels'), blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['user', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Post by {self.user.username} at {self.created_at}"
 
     @property
     def likes_count(self):
+        if hasattr(self, 'cached_likes_count'):
+            return self.cached_likes_count
+        if hasattr(self, '_prefetched_objects_cache') and 'likes' in self._prefetched_objects_cache:
+            return len(self.likes.all())
         return self.likes.count()
 
     @property
     def comments_count(self):
+        if hasattr(self, 'cached_comments_count'):
+            return self.cached_comments_count
+        if hasattr(self, '_prefetched_objects_cache') and 'comments' in self._prefetched_objects_cache:
+            return len(self.comments.all())
         return self.comments.count()
 
     @property
@@ -109,6 +130,10 @@ class Like(models.Model):
 
     class Meta:
         unique_together = ('user', 'post')
+        indexes = [
+            models.Index(fields=['user', 'post']),
+            models.Index(fields=['post', 'created_at']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} liked {self.post.id}"
@@ -122,6 +147,9 @@ class Comment(models.Model):
 
     class Meta:
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['post', 'created_at']),
+        ]
 
     def __str__(self):
         return f"Comment by {self.user.username} on post {self.post.id}"
@@ -134,6 +162,10 @@ class Follow(models.Model):
 
     class Meta:
         unique_together = ('follower', 'following')
+        indexes = [
+            models.Index(fields=['follower', 'following']),
+            models.Index(fields=['following', 'follower']),
+        ]
 
     def __str__(self):
         return f"{self.follower.username} follows {self.following.username}"
@@ -146,6 +178,9 @@ class Bookmark(models.Model):
 
     class Meta:
         unique_together = ('user', 'post')
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} saved post {self.post.id}"
@@ -167,6 +202,10 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['receiver', 'is_read', '-created_at']),
+            models.Index(fields=['receiver', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Notification for {self.receiver.username} from {self.sender.username} ({self.notification_type})"
@@ -178,10 +217,14 @@ class Story(models.Model):
     video = models.FileField(upload_to=generate_upload_path('stories'), blank=True, null=True)
     music = models.FileField(upload_to=generate_upload_path('stories'), blank=True, null=True)
     caption = models.CharField(max_length=255, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['user', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Story by {self.user.username} at {self.created_at}"
@@ -214,16 +257,21 @@ class Conversation(models.Model):
     conversation_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default=DIRECT)
     title = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
 
     class Meta:
         ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['-updated_at']),
+        ]
 
     def __str__(self):
         return f"Conversation #{self.id} ({self.conversation_type})"
 
     def get_partner(self, current_user=None):
         """For direct 1-on-1 conversations, returns the other participant User."""
+        if hasattr(self, 'partner') and self.partner:
+            return self.partner
         if hasattr(self, '_prefetched_objects_cache') and 'participants' in self._prefetched_objects_cache:
             for p in self.participants.all():
                 if current_user and p.user_id != getattr(current_user, 'id', None):
@@ -240,10 +288,14 @@ class Conversation(models.Model):
 
     def get_last_message(self):
         """Returns the latest non-deleted message."""
-        return self.messages.filter(is_deleted=False).select_related('sender').order_by('-created_at').first()
+        if hasattr(self, 'cached_last_message'):
+            return self.cached_last_message
+        return self.messages.filter(is_deleted=False).select_related('sender', 'sender__profile').order_by('-created_at').first()
 
     def get_unread_count(self, user):
         """Calculates count of incoming unread messages for this user."""
+        if hasattr(self, 'unread_count'):
+            return self.unread_count
         participant = self.participants.filter(user=user).first()
         if not participant:
             return 0
@@ -265,6 +317,10 @@ class ConversationParticipant(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['conversation', 'user'], name='unique_participant')
+        ]
+        indexes = [
+            models.Index(fields=['user', 'hidden_at']),
+            models.Index(fields=['conversation', 'user']),
         ]
 
     def __str__(self):
@@ -288,6 +344,7 @@ class Message(models.Model):
         ordering = ['created_at']
         indexes = [
             models.Index(fields=['conversation', '-created_at']),
+            models.Index(fields=['conversation', 'is_deleted', '-created_at']),
             models.Index(fields=['conversation', 'id']),
             models.Index(fields=['sender', '-created_at']),
         ]
@@ -321,6 +378,10 @@ class MessageReaction(models.Model):
 
     class Meta:
         unique_together = ('message', 'user')
+        indexes = [
+            models.Index(fields=['message', 'user']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} reacted {self.emoji} on msg #{self.message_id}"
+

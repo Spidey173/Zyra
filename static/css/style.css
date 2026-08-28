@@ -504,6 +504,7 @@ body {
 }
 
 .double-tap-heart.animate {
+    will-change: transform, opacity;
     animation: heartPop 0.8s ease forwards;
 }
 
