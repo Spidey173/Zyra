@@ -430,6 +430,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         storyUserName.textContent = userData.username;
 
+        // Toggle delete button for current user's own story
+        const storyDeleteBtn = document.getElementById('story-delete-btn');
+        if (storyDeleteBtn) {
+            const isOwnStory = userData.username.toLowerCase() === '{{ request.user.username|lower }}';
+            if (isOwnStory) {
+                storyDeleteBtn.classList.remove('d-none');
+            } else {
+                storyDeleteBtn.classList.add('d-none');
+            }
+        }
+
         // Render progress bars
         storyProgressBarsContainer.innerHTML = '';
         stories.forEach((s, idx) => {
@@ -582,6 +593,64 @@ document.addEventListener('DOMContentLoaded', function() {
             closeStoryViewer();
         }
     });
+
+    // Story Delete Handler
+    const storyDeleteBtn = document.getElementById('story-delete-btn');
+    if (storyDeleteBtn) {
+        storyDeleteBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (currentUserIndex < 0 || !window.activeStoriesData[currentUserIndex]) return;
+            const userData = window.activeStoriesData[currentUserIndex];
+            const story = userData.stories[currentStoryIndex];
+            if (!story) return;
+
+            isStoryPaused = true;
+            if (!confirm("Are you sure you want to delete this story?")) {
+                isStoryPaused = false;
+                return;
+            }
+
+            fetch(`/story/delete/${story.id}/`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    userData.stories.splice(currentStoryIndex, 1);
+                    if (userData.stories.length === 0) {
+                        window.activeStoriesData.splice(currentUserIndex, 1);
+                        const bubble = document.querySelector(`.story-bubble[onclick*="${userData.username}"]`);
+                        if (bubble) bubble.remove();
+                        if (window.activeStoriesData.length === 0) {
+                            closeStoryViewer();
+                        } else {
+                            if (currentUserIndex >= window.activeStoriesData.length) {
+                                currentUserIndex = window.activeStoriesData.length - 1;
+                            }
+                            currentStoryIndex = 0;
+                            showStory();
+                        }
+                    } else {
+                        if (currentStoryIndex >= userData.stories.length) {
+                            currentStoryIndex = userData.stories.length - 1;
+                        }
+                        showStory();
+                    }
+                } else {
+                    alert(data.error || "Failed to delete story");
+                    isStoryPaused = false;
+                }
+            })
+            .catch(err => {
+                console.error('Delete story error:', err);
+                isStoryPaused = false;
+            });
+        });
+    }
 
     // Story Heart Reaction
     const storyHeartBtn = document.getElementById('story-heart-reaction');

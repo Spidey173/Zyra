@@ -44,17 +44,24 @@ def user_profile(request, username):
 
     saved_posts = []
     if is_self:
-        saved_posts = Post.objects.filter(bookmarks__user=profile_user).select_related('user', 'user__profile').prefetch_related('likes', 'comments')
-        for post in saved_posts:
-            post.is_liked_by_user = post.likes.filter(user=request.user).exists()
-            post.is_bookmarked_by_user = True
+        saved_posts = list(Post.objects.filter(bookmarks__user=profile_user).select_related('user', 'user__profile').prefetch_related('likes', 'comments'))
 
+    posts_list = list(posts)
     # User's video reels
-    user_reels = posts.exclude(video='').exclude(video__isnull=True)
+    user_reels = [p for p in posts_list if p.video]
 
-    for post in posts:
-        post.is_liked_by_user = post.likes.filter(user=request.user).exists()
-        post.is_bookmarked_by_user = Bookmark.objects.filter(user=request.user, post=post).exists()
+    all_profile_posts = set(posts_list + saved_posts)
+    all_post_ids = [p.id for p in all_profile_posts]
+    user_liked_ids = set(Like.objects.filter(user=request.user, post_id__in=all_post_ids).values_list('post_id', flat=True))
+    user_saved_ids = set(Bookmark.objects.filter(user=request.user, post_id__in=all_post_ids).values_list('post_id', flat=True))
+
+    for post in posts_list:
+        post.is_liked_by_user = post.id in user_liked_ids
+        post.is_bookmarked_by_user = post.id in user_saved_ids
+
+    for post in saved_posts:
+        post.is_liked_by_user = post.id in user_liked_ids
+        post.is_bookmarked_by_user = True
 
     context = {
         'profile_user': profile_user,

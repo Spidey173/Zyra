@@ -1,5 +1,6 @@
 from django.conf import settings
-from .models import ConversationParticipant, Notification
+from django.db.models import Q, F
+from .models import Notification, Message
 
 def app_settings(request):
     """Global template context variables for branding and badges."""
@@ -7,7 +8,7 @@ def app_settings(request):
         'APP_NAME': getattr(settings, 'APP_NAME', 'Zyra'),
     }
     if request.user.is_authenticated:
-        # Calculate unread notifications count (Comments and Follows only)
+        # Fast query for unread notifications
         try:
             context['unread_notifications_count'] = Notification.objects.filter(
                 receiver=request.user, notification_type__in=['comment', 'follow'], is_read=False
@@ -15,20 +16,17 @@ def app_settings(request):
         except Exception:
             context['unread_notifications_count'] = 0
 
-        # Calculate unread conversations count
+        # Fast single query for unread direct conversations
         try:
-            # Check for any participant entry where conversation has messages after last_read_at
-            from .models import Conversation
-            unread_chats = 0
-            participants = ConversationParticipant.objects.filter(
-                user=request.user, hidden_at__isnull=True
-            ).select_related('conversation')
-            for p in participants:
-                last_msg = p.conversation.messages.exclude(sender=request.user).order_by('-created_at').first()
-                if last_msg:
-                    if not p.last_read_at or last_msg.created_at > p.last_read_at:
-                        unread_chats += 1
-            context['unread_direct_count'] = unread_chats
+            context['unread_direct_count'] = Message.objects.filter(
+                conversation__participants__user=request.user,
+                conversation__participants__hidden_at__isnull=True
+            ).exclude(
+                sender=request.user
+            ).filter(
+                Q(conversation__participants__last_read_at__isnull=True) |
+                Q(created_at__gt=F('conversation__participants__last_read_at'))
+            ).values('conversation_id').distinct().count()
         except Exception:
             context['unread_direct_count'] = 0
     else:

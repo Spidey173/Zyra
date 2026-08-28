@@ -51,10 +51,13 @@ def home(request):
             return JsonResponse({'posts_html': ''})
         posts_page = paginator.page(paginator.num_pages)
 
-    # Add interaction flags
+    # Batch interaction flags to avoid N+1 database queries
+    post_ids = [p.id for p in posts_page]
+    user_liked_post_ids = set(Like.objects.filter(user=request.user, post_id__in=post_ids).values_list('post_id', flat=True))
+    user_bookmarked_post_ids = set(Bookmark.objects.filter(user=request.user, post_id__in=post_ids).values_list('post_id', flat=True))
     for post in posts_page:
-        post.is_liked_by_user = post.likes.filter(user=request.user).exists()
-        post.is_bookmarked_by_user = Bookmark.objects.filter(user=request.user, post=post).exists()
+        post.is_liked_by_user = post.id in user_liked_post_ids
+        post.is_bookmarked_by_user = post.id in user_bookmarked_post_ids
 
     # Dynamic suggestions (not followed & not self)
     suggested_users = User.objects.exclude(

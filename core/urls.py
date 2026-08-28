@@ -24,6 +24,7 @@ urlpatterns = [
 
     # Stories
     path('story/create/', views.create_story_view, name='create_story'),
+    path('story/delete/<int:story_id>/', views.delete_story_view, name='delete_story'),
 
     # User Profiles & Follow Graph
     path('user/<str:username>/', views.user_profile, name='user_profile'),
