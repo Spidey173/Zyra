@@ -78,6 +78,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
+AUTHENTICATION_BACKENDS = [
+    'core.backends.CaseInsensitiveModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 # Channel Layers for WebSockets
 REDIS_URL = os.environ.get('REDIS_URL')
 if REDIS_URL:
