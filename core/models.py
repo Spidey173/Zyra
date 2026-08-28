@@ -18,6 +18,7 @@ class UserProfile(models.Model):
     gender = models.CharField(max_length=30, choices=GENDER_CHOICES, default='he/him', blank=True)
     bio = models.TextField(max_length=500, blank=True)
     profile_pic = models.ImageField(upload_to=generate_upload_path('avatars'), blank=True, null=True)
+    last_seen = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username}'s profile"
@@ -33,6 +34,29 @@ class UserProfile(models.Model):
     @property
     def get_profile_pic_url(self):
         return get_media_url(self.profile_pic)
+
+    @property
+    def is_online(self):
+        if not self.last_seen:
+            return False
+        return timezone.now() - self.last_seen <= timedelta(minutes=3)
+
+    @property
+    def online_status_text(self):
+        if not self.last_seen:
+            return "Offline"
+        diff = timezone.now() - self.last_seen
+        minutes = int(diff.total_seconds() // 60)
+        if minutes < 3:
+            return "Active now"
+        elif minutes < 60:
+            return f"Active {minutes}m ago"
+        elif minutes < 1440:
+            hours = minutes // 60
+            return f"Active {hours}h ago"
+        else:
+            days = minutes // 1440
+            return f"Active {days}d ago" if days < 7 else "Offline"
 
 
 @receiver(post_save, sender=User)

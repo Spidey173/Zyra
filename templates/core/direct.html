@@ -51,7 +51,7 @@
                                         {{ partner.username|slice:":1"|upper }}
                                     </div>
                                 {% endif %}
-                                <span class="conv-online-dot"></span>
+                                <span class="conv-online-dot {% if not partner.profile.is_online %}d-none{% endif %}" id="convDot-{{ partner.username|lower }}"></span>
                             </div>
 
                             <!-- Conversation Details -->
@@ -122,7 +122,7 @@
                                     {{ active_partner.username|slice:":1"|upper }}
                                 </div>
                             {% endif %}
-                            <span class="conv-online-dot"></span>
+                            <span class="conv-online-dot {% if not active_partner.profile.is_online %}d-none{% endif %}" id="headerPartnerOnlineDot"></span>
                         </a>
 
                         <div>
@@ -132,8 +132,12 @@
                                 </a>
                                 <span class="ws-status-badge d-none" id="wsLiveStatus">⚡ Live</span>
                             </div>
-                            <span class="chat-status-text text-white-50 small d-flex align-items-center gap-1">
-                                <span class="active-pulse-indicator"></span> Active now
+                            <span class="chat-status-text text-white-50 small d-flex align-items-center gap-1" id="headerPartnerStatus">
+                                {% if active_partner.profile.is_online %}
+                                    <span class="active-pulse-indicator"></span> Active now
+                                {% else %}
+                                    <span class="offline-dot"></span> {{ active_partner.profile.online_status_text }}
+                                {% endif %}
                             </span>
                         </div>
                     </div>
@@ -1182,6 +1186,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 showTypingIndicator();
             } else {
                 hideTypingIndicator();
+            }
+        } else if (data.type === 'user_status_changed') {
+            if (data.username && data.username.toLowerCase() === activePartnerUsername.toLowerCase()) {
+                const statusEl = document.getElementById('headerPartnerStatus');
+                const headerDot = document.getElementById('headerPartnerOnlineDot');
+                if (statusEl) {
+                    if (data.is_online) {
+                        statusEl.innerHTML = '<span class="active-pulse-indicator"></span> Active now';
+                        if (headerDot) headerDot.classList.remove('d-none');
+                    } else {
+                        statusEl.innerHTML = `<span class="offline-dot"></span> ${data.status_text || 'Offline'}`;
+                        if (headerDot) headerDot.classList.add('d-none');
+                    }
+                }
+            }
+            const convDot = document.getElementById(`convDot-${(data.username || '').toLowerCase()}`);
+            if (convDot) {
+                if (data.is_online) convDot.classList.remove('d-none');
+                else convDot.classList.add('d-none');
             }
         } else if (data.type === 'messages_read') {
             document.querySelectorAll('.message-bubble-wrapper.sent .message-meta').forEach(meta => {

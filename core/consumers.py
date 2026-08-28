@@ -46,14 +46,42 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "conversation_id": self.conversation_id
             }
         )
+        # Broadcast online presence
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                "type": "user_status_changed",
+                "username": self.user.username,
+                "is_online": True,
+                "status_text": "Active now"
+            }
+        )
 
     async def disconnect(self, close_code):
-        # Leave room group
+        # Broadcast offline presence and leave group
         if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "user_status_changed",
+                    "username": self.user.username,
+                    "is_online": False,
+                    "status_text": "Active just now"
+                }
+            )
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name
             )
+
+    async def user_status_changed(self, event):
+        if event["username"] != self.user.username:
+            await self.send_json({
+                "type": "user_status_changed",
+                "username": event["username"],
+                "is_online": event["is_online"],
+                "status_text": event["status_text"]
+            })
 
     async def receive_json(self, content):
         action = content.get("action")

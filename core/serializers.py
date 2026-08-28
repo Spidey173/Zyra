@@ -2,16 +2,21 @@ from django.utils import timezone
 from .utils.media import get_media_url
 
 def serialize_user(user):
-    """Serializes basic user info."""
+    """Serializes basic user info with real-time online status."""
     if not user:
         return None
-    avatar_url = get_media_url(user.profile.profile_pic) if hasattr(user, 'profile') else None
+    profile = getattr(user, 'profile', None)
+    avatar_url = get_media_url(profile.profile_pic) if profile else None
+    is_online = profile.is_online if profile else False
+    online_status_text = profile.online_status_text if profile else "Offline"
     return {
         'id': user.id,
         'username': user.username,
         'first_name': user.first_name,
         'last_name': user.last_name,
         'profile_pic': avatar_url,
+        'is_online': is_online,
+        'online_status_text': online_status_text,
     }
 
 def serialize_post_preview(post):
