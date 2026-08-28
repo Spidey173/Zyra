@@ -8,7 +8,7 @@
         <!-- =================================================================
              1. LEFT SIDEBAR: CONVERSATIONS LIST
              ================================================================= -->
-        <aside class="direct-sidebar" id="directSidebar">
+        <aside class="direct-sidebar {% if is_direct_chat %}d-none d-md-flex{% endif %}" id="directSidebar">
             
             <!-- Sidebar Header -->
             <div class="direct-sidebar-header">
@@ -103,16 +103,16 @@
         <!-- =================================================================
              2. RIGHT CHAT WINDOW
              ================================================================= -->
-        <main class="direct-chat-window" id="directChatWindow">
+        <main class="direct-chat-window {% if not is_direct_chat %}d-none d-md-flex{% endif %}" id="directChatWindow">
             {% if active_conversation and active_partner %}
                 
                 <!-- Chat Header -->
                 <header class="chat-header">
                     <div class="d-flex align-items-center gap-3">
                         <!-- Mobile Back to List -->
-                        <button type="button" class="btn btn-link text-white p-0 d-md-none border-0" id="backToSidebarBtn">
-                            <i class="bi bi-arrow-left fs-5"></i>
-                        </button>
+                        <a href="{% url 'direct_inbox' %}" class="btn btn-link text-white p-0 d-md-none border-0 text-decoration-none me-1" id="backToSidebarBtn" title="Back to messages">
+                            <i class="bi bi-chevron-left fs-5"></i>
+                        </a>
 
                         <a href="{% url 'user_profile' username=active_partner.username %}" class="position-relative text-decoration-none">
                             {% if active_partner.profile.get_profile_pic_url %}
@@ -965,14 +965,29 @@ body:has(.direct-wrapper) .main-content-wrapper {
 }
 
 @media (max-width: 768px) {
+    .direct-wrapper {
+        padding: 0 !important;
+        height: calc(100vh - 58px) !important;
+        height: calc(100dvh - 58px) !important;
+    }
+    .direct-container {
+        border-left: none !important;
+        height: 100% !important;
+        width: 100% !important;
+    }
     .direct-sidebar {
-        width: 100%;
+        width: 100% !important;
+        min-width: 100% !important;
+        border-right: none !important;
+        height: 100% !important;
     }
     .direct-chat-window {
-        display: none;
+        width: 100% !important;
+        height: 100% !important;
     }
-    .direct-chat-window.mobile-active {
-        display: flex;
+    .chat-input-bar {
+        padding: 8px 12px;
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
     }
 }
 </style>

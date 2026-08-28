@@ -72,6 +72,7 @@ def direct_inbox(request, username=None):
         'conversations_json': json.dumps(conversations_data),
         'active_conversation': active_conversation,
         'active_partner': initial_partner,
+        'is_direct_chat': bool(username),
         'initial_messages': initial_messages,
         'initial_messages_json': json.dumps(initial_messages),
     }
