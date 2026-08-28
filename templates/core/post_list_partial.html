@@ -1,0 +1,122 @@
+{% for post in posts %}
+    <div class="glass-card post-card mb-4 p-3 p-sm-4" data-post-id="{{ post.id }}" style="border-radius: 24px;">
+        <!-- Post Header -->
+        <div class="post-header d-flex align-items-center justify-content-between mb-3">
+            <div class="d-flex align-items-center gap-3">
+                <a href="{% url 'user_profile' username=post.user.username %}" class="text-decoration-none">
+                    <div class="story-avatar-wrapper" style="width: 44px; height: 44px; padding: 2px;">
+                        {% if post.user.profile.get_profile_pic_url %}
+                            <img src="{{ post.user.profile.get_profile_pic_url }}" alt="Avatar" class="story-avatar" style="border: 2px solid var(--bg-surface-1);">
+                        {% else %}
+                            <div class="story-avatar d-flex align-items-center justify-content-center text-white fw-bold" style="background: var(--story-gradient); font-size: 0.9rem;">
+                                {{ post.user.username|slice:":1"|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </a>
+                <div>
+                    <a href="{% url 'user_profile' username=post.user.username %}" class="post-author-name fw-bold text-white text-decoration-none d-block" style="font-size: 0.93rem;">
+                        {{ post.user.username }}
+                    </a>
+                    <span class="text-secondary" style="font-size: 0.72rem;">{{ post.created_at|timesince }} ago</span>
+                </div>
+            </div>
+
+            {% if request.user == post.user %}
+                <div class="dropdown">
+                    <button class="btn btn-link text-secondary p-0 border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="box-shadow: none;">
+                        <i class="bi bi-three-dots fs-5"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark" style="border: 1px solid var(--border-subtle); background-color: var(--bg-surface-2); border-radius: 14px;">
+                        <li>
+                            <form method="POST" action="{% url 'delete_post' post_id=post.id %}" class="delete-post-ajax-form d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item text-danger fw-bold d-flex align-items-center gap-2 py-2">
+                                    <i class="bi bi-trash"></i> Delete Post
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Post Body / Media -->
+        <div class="post-body position-relative rounded-4 overflow-hidden mb-3" style="background: #000; border: 1px solid var(--border-subtle);">
+            {% if post.get_video_url %}
+                <div class="post-video-container" style="border-radius: 0; border: none; margin-bottom: 0;">
+                    <video src="{{ post.get_video_url }}" class="post-video w-100" loop playsinline muted autoplay></video>
+                    <button type="button" class="video-audio-toggle">
+                        <i class="bi bi-volume-mute-fill"></i>
+                    </button>
+                    <div class="video-play-indicator">
+                        <i class="bi bi-play-fill"></i>
+                    </div>
+                </div>
+            {% elif post.get_image_url %}
+                <img src="{{ post.get_image_url }}" alt="Post Content" class="w-100 post-image-element" style="max-height: 580px; object-fit: cover; cursor: pointer;">
+            {% endif %}
+            <i class="bi bi-heart-fill double-tap-heart"></i>
+        </div>
+
+        <!-- Action Bar Icons -->
+        <div class="post-actions d-flex align-items-center justify-content-between py-2 px-1 mb-2">
+            <div class="d-flex align-items-center gap-3">
+                <!-- Like Button -->
+                <form method="POST" action="{% url 'like_post' post_id=post.id %}" class="d-inline like-ajax-form">
+                    {% csrf_token %}
+                    <button type="submit" class="post-action-btn p-0 {% if post.is_liked_by_user %}liked{% endif %}" style="font-size: 1.45rem;">
+                        <i class="bi {% if post.is_liked_by_user %}bi-heart-fill text-danger{% else %}bi-heart text-white{% endif %}"></i>
+                    </button>
+                </form>
+                
+                <!-- Comment Button -->
+                <a href="{% url 'post_detail' post_id=post.id %}" class="post-action-btn text-white text-decoration-none" style="font-size: 1.45rem;">
+                    <i class="bi bi-chat"></i>
+                </a>
+
+                <!-- Share to DM Button -->
+                <button type="button" class="post-action-btn text-white p-0 border-0 bg-transparent" onclick="openSharePostModal('{{ post.id }}')" title="Share to Direct" style="font-size: 1.4rem;">
+                    <i class="bi bi-send"></i>
+                </button>
+            </div>
+
+            <!-- Save / Bookmark Button -->
+            <form method="POST" action="{% url 'toggle_bookmark' post_id=post.id %}" class="bookmark-ajax-form">
+                {% csrf_token %}
+                <button type="submit" class="post-action-btn p-0 {% if post.is_bookmarked_by_user %}saved{% endif %}" style="font-size: 1.45rem;">
+                    <i class="bi {% if post.is_bookmarked_by_user %}bi-bookmark-fill text-warning{% else %}bi-bookmark text-white{% endif %}"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- Likes Count Display -->
+        <div class="likes-count-display mb-2 px-1">
+            <span class="fw-bold text-white small"><span class="likes-count">{{ post.likes_count }}</span> likes</span>
+        </div>
+
+        <!-- Caption -->
+        {% if post.caption %}
+            <div class="caption-display mb-2 px-1 small text-light" style="line-height: 1.45;">
+                <a href="{% url 'user_profile' username=post.user.username %}" class="fw-bold text-white text-decoration-none me-1">{{ post.user.username }}</a>
+                <span>{{ post.caption }}</span>
+            </div>
+        {% endif %}
+
+        <!-- Comments Link -->
+        {% if post.comments_count > 0 %}
+            <div class="comments-link-display mb-2 px-1">
+                <a href="{% url 'post_detail' post_id=post.id %}" class="text-secondary small text-decoration-none">
+                    View all {{ post.comments_count }} comments
+                </a>
+            </div>
+        {% endif %}
+
+        <!-- Inline Quick Comment Input -->
+        <form method="POST" action="{% url 'comment_post' post_id=post.id %}" class="comment-ajax-form d-flex align-items-center mt-2 pt-2 border-top border-dark px-1">
+            {% csrf_token %}
+            <input type="text" name="content" class="form-control form-control-custom bg-transparent border-0 p-0 text-white small" placeholder="Add a comment..." required style="box-shadow: none;">
+            <button type="submit" class="btn btn-link text-decoration-none fw-bold p-0 ms-2 small" style="color: #FF2E93;">Post</button>
+        </form>
+    </div>
+{% endfor %}

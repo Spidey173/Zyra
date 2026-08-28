@@ -1,0 +1,279 @@
+{% extends 'core/base.html' %}
+{% block title %}Reels • {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center w-100 py-2" style="min-height: calc(100vh - 60px);">
+    <div class="reels-container" id="reelsContainer" style="height: calc(100vh - 60px); max-height: 780px; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none;">
+        {% for post in posts %}
+            <div class="reel-item d-flex align-items-end justify-content-center position-relative mb-4" data-post-id="{{ post.id }}" style="scroll-snap-align: start; scroll-snap-stop: always; height: calc(100vh - 60px); max-height: 780px;">
+                
+                <!-- Instagram Smartphone Video Frame -->
+                <div class="reel-card position-relative overflow-hidden" style="width: 380px; height: 100%; max-height: 760px; background: #000; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08);">
+                    
+                    <!-- Video -->
+                    <div class="reel-video-wrapper w-100 h-100 position-relative">
+                        <video src="{{ post.get_video_url }}" class="reel-video w-100 h-100" style="object-fit: cover; cursor: pointer;" loop playsinline autoplay muted></video>
+                        
+                        <!-- Double tap heart -->
+                        <i class="bi bi-heart-fill double-tap-heart"></i>
+
+                        <!-- Top Right Audio Mute Button -->
+                        <button type="button" class="video-audio-toggle position-absolute top-0 end-0 m-3" style="z-index: 20; background: rgba(0,0,0,0.5); border: none; width: 32px; height: 32px;">
+                            <i class="bi bi-volume-mute-fill fs-6"></i>
+                        </button>
+
+                        <!-- Center Play/Pause Flash Indicator -->
+                        <div class="video-play-indicator">
+                            <i class="bi bi-play-fill"></i>
+                        </div>
+
+                        <!-- Bottom Creator Info Overlay -->
+                        <div class="position-absolute bottom-0 start-0 w-100 p-3" style="z-index: 10; background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <a href="{% url 'user_profile' username=post.user.username %}" class="text-decoration-none">
+                                    {% if post.user.profile.get_profile_pic_url %}
+                                        <img src="{{ post.user.profile.get_profile_pic_url }}" alt="Avatar" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover; border: 1.5px solid #fff;">
+                                    {% else %}
+                                        <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem; background: var(--story-gradient);">
+                                            {{ post.user.username|slice:":1"|upper }}
+                                        </div>
+                                    {% endif %}
+                                </a>
+                                <a href="{% url 'user_profile' username=post.user.username %}" class="fw-bold text-white text-decoration-none small">
+                                    {{ post.user.username }}
+                                </a>
+                                
+                                {% if request.user != post.user %}
+                                    <span class="text-white-50 small">•</span>
+                                    <form method="POST" action="{% url 'follow_user' username=post.user.username %}" class="follow-ajax-form m-0 d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-link p-0 fw-bold small text-decoration-none" style="color: #0095f6 !important; font-size: 0.82rem;">
+                                            {% if post.user.is_followed_by_user %}Following{% else %}Follow{% endif %}
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+
+                            {% if post.caption %}
+                                <p class="text-white small mb-2" style="line-height: 1.35; max-height: 50px; overflow: hidden; text-overflow: ellipsis; font-size: 0.82rem;">
+                                    {{ post.caption }}
+                                </p>
+                            {% endif %}
+
+                            <!-- Music Sound Ticker -->
+                            <div class="d-flex align-items-center gap-2 text-white-50 small" style="font-size: 0.72rem;">
+                                <i class="bi bi-music-note-beamed"></i>
+                                <span class="text-truncate">Original Audio • {{ post.user.username }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side Vertical Action Rail (Exact Instagram Style) -->
+                <div class="d-flex flex-column align-items-center gap-3 ms-3 mb-2" style="z-index: 25;">
+                    <!-- Like Action -->
+                    <form method="POST" action="{% url 'like_post' post_id=post.id %}" class="like-ajax-form m-0 text-center">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-link text-white p-0 border-0 text-decoration-none {% if post.is_liked_by_user %}liked{% endif %}" title="Like">
+                            <i class="bi {% if post.is_liked_by_user %}bi-heart-fill text-danger{% else %}bi-heart text-white{% endif %} fs-4"></i>
+                        </button>
+                        <span class="d-block text-white fw-semibold likes-count" style="font-size: 0.75rem;">{{ post.likes_count }}</span>
+                    </form>
+                    
+                    <!-- Comment Action -->
+                    <div class="text-center">
+                        <a href="{% url 'post_detail' post_id=post.id %}" class="text-white text-decoration-none" title="Comments">
+                            <i class="bi bi-chat fs-4"></i>
+                        </a>
+                        <span class="d-block text-white fw-semibold" style="font-size: 0.75rem;">{{ post.comments_count }}</span>
+                    </div>
+
+                    <!-- Share to DM -->
+                    <div class="text-center">
+                        <button type="button" class="btn btn-link text-white p-0 border-0 text-decoration-none" onclick="openSharePostModal('{{ post.id }}')" title="Share">
+                            <i class="bi bi-send fs-4"></i>
+                        </button>
+                        <span class="d-block text-white fw-semibold" style="font-size: 0.75rem;">Share</span>
+                    </div>
+
+                    <!-- Bookmark Action -->
+                    <form method="POST" action="{% url 'toggle_bookmark' post_id=post.id %}" class="bookmark-ajax-form m-0 text-center">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-link text-white p-0 border-0 text-decoration-none {% if post.is_bookmarked_by_user %}saved{% endif %}" title="Save">
+                            <i class="bi {% if post.is_bookmarked_by_user %}bi-bookmark-fill text-warning{% else %}bi-bookmark text-white{% endif %} fs-4"></i>
+                        </button>
+                    </form>
+
+                    <!-- Three dots menu -->
+                    <button type="button" class="btn btn-link text-white p-0 border-0 text-decoration-none" title="More options">
+                        <i class="bi bi-three-dots fs-5"></i>
+                    </button>
+
+                    <!-- Circular Audio Disc Thumbnail -->
+                    <div class="rounded-1 mt-1 overflow-hidden" style="width: 26px; height: 26px; border: 1.5px solid rgba(255,255,255,0.8); background: #262626; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-disc text-white" style="font-size: 0.85rem;"></i>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="glass-card text-center py-5 px-4 my-auto" style="border-radius: 20px; max-width: 400px;">
+                <i class="bi bi-play-btn-fill fs-1 text-danger mb-3 d-block"></i>
+                <h5 class="text-white fw-bold">No Reels Available</h5>
+                <p class="text-secondary small mb-3">Upload a vertical video to broadcast the first reel!</p>
+                <button type="button" class="btn btn-grad rounded-pill px-4" onclick="toggleCreateModal(true)">
+                    Create Reel
+                </button>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.reels-container::-webkit-scrollbar {
+    display: none;
+}
+
+@media (max-width: 576px) {
+    .reel-card {
+        width: 100vw !important;
+        height: calc(100vh - 120px) !important;
+        border-radius: 0 !important;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let globalMuted = true;
+
+    // AJAX Like Handlers
+    document.querySelectorAll('.like-ajax-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const button = this.querySelector('button');
+            const icon = button.querySelector('i');
+            const item = this.closest('.reel-item');
+            const countSpan = item.querySelector('.likes-count');
+            const url = this.getAttribute('action');
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                countSpan.textContent = data.likes_count;
+                if (data.liked) {
+                    button.classList.add('liked');
+                    icon.className = 'bi bi-heart-fill text-danger fs-4';
+                } else {
+                    button.classList.remove('liked');
+                    icon.className = 'bi bi-heart text-white fs-4';
+                }
+            });
+        });
+    });
+
+    // AJAX Bookmark Handlers
+    document.querySelectorAll('.bookmark-ajax-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const button = this.querySelector('button');
+            const icon = button.querySelector('i');
+            const url = this.getAttribute('action');
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.bookmarked) {
+                    button.classList.add('saved');
+                    icon.className = 'bi bi-bookmark-fill text-warning fs-4';
+                } else {
+                    button.classList.remove('saved');
+                    icon.className = 'bi bi-bookmark text-white fs-4';
+                }
+            });
+        });
+    });
+
+    // Video Play/Pause & Mute Toggle
+    const videos = document.querySelectorAll('.reel-video');
+    videos.forEach(video => {
+        const wrapper = video.closest('.reel-video-wrapper');
+        const audioBtn = wrapper.querySelector('.video-audio-toggle');
+        const playIndicator = wrapper.querySelector('.video-play-indicator');
+        const playIcon = playIndicator.querySelector('i');
+        const heart = wrapper.querySelector('.double-tap-heart');
+        const reelItem = video.closest('.reel-item');
+        const likeForm = reelItem.querySelector('.like-ajax-form');
+
+        // Click to play/pause
+        video.addEventListener('click', function() {
+            if (video.paused) {
+                video.play();
+                playIcon.className = 'bi bi-play-fill';
+            } else {
+                video.pause();
+                playIcon.className = 'bi bi-pause-fill';
+            }
+            playIndicator.classList.add('show');
+            setTimeout(() => playIndicator.classList.remove('show'), 500);
+        });
+
+        // Double click to like
+        video.addEventListener('dblclick', function(e) {
+            if (heart) {
+                heart.classList.add('animate');
+                setTimeout(() => heart.classList.remove('animate'), 800);
+            }
+            if (likeForm) {
+                const likeBtn = likeForm.querySelector('button');
+                if (!likeBtn.classList.contains('liked')) {
+                    likeBtn.click();
+                }
+            }
+        });
+
+        if (audioBtn) {
+            audioBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                globalMuted = !globalMuted;
+                document.querySelectorAll('.reel-video').forEach(v => {
+                    v.muted = globalMuted;
+                    const icon = v.closest('.reel-video-wrapper').querySelector('.video-audio-toggle i');
+                    if (icon) {
+                        icon.className = globalMuted ? 'bi bi-volume-mute-fill fs-6' : 'bi bi-volume-up-fill fs-6';
+                    }
+                });
+            });
+        }
+    });
+
+    // Autoplay snap logic
+    if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const video = entry.target;
+                if (entry.isIntersecting) {
+                    video.muted = globalMuted;
+                    video.play().catch(err => console.log("Reels autoplay block:", err));
+                } else {
+                    video.pause();
+                }
+            });
+        }, { threshold: 0.75 });
+
+        videos.forEach(video => observer.observe(video));
+    }
+});
+</script>
+{% endblock %}

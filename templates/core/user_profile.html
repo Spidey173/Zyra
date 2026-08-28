@@ -1,0 +1,387 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ profile_user.username }} (@{{ profile_user.username }}) • {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12" style="max-width: 935px;">
+        
+        <!-- Authentic Instagram Profile Header -->
+        <header class="d-flex flex-column mb-4 px-2">
+            
+            <!-- Top Section: Avatar + Info -->
+            <div class="d-flex align-items-center gap-4 gap-md-5 mb-4">
+                
+                <!-- Circular Profile Image (Click to change photo if self) -->
+                <div class="flex-shrink-0">
+                    <div class="rounded-circle overflow-hidden position-relative" style="width: 130px; height: 130px; border: 2px solid #262626; cursor: {% if is_self %}pointer{% else %}default{% endif %};" {% if is_self %}data-bs-toggle="modal" data-bs-target="#changePhotoModal" title="Change Profile Photo"{% endif %}>
+                        {% if profile_user.profile.get_profile_pic_url %}
+                            <img src="{{ profile_user.profile.get_profile_pic_url }}" alt="{{ profile_user.username }}" class="w-100 h-100" style="object-fit: cover;">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center text-white fw-bold" style="background: var(--story-gradient); font-size: 3rem;">
+                                {{ profile_user.username|slice:":1"|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right Side User Info -->
+                <div class="flex-grow-1">
+                    <!-- Line 1: Username -->
+                    <div class="d-flex align-items-center mb-1">
+                        <h2 class="text-white fw-bold mb-0" style="font-size: 1.35rem; letter-spacing: -0.01em;">{{ profile_user.username }}</h2>
+                    </div>
+
+                    <!-- Line 2: Pronouns / Gender Only (No duplicate name) -->
+                    {% if profile_user.profile.gender and profile_user.profile.gender != 'none' %}
+                        <div class="text-white-50 small mb-2" style="font-size: 0.88rem;">
+                            <span>{{ profile_user.profile.gender }}</span>
+                        </div>
+                    {% else %}
+                        <div class="mb-2"></div>
+                    {% endif %}
+
+                    <!-- Line 3: Stats Counter (Posts, Followers, Following) -->
+                    <div class="d-flex align-items-center gap-4 text-white mb-2" style="font-size: 0.95rem;">
+                        <div><strong class="text-white">{{ posts.count }}</strong> <span class="text-white">posts</span></div>
+                        <a href="{% url 'followers_list' username=profile_user.username %}" class="text-decoration-none text-white">
+                            <strong class="text-white followers-count-val">{{ profile_user.profile.followers_count }}</strong> followers
+                        </a>
+                        <a href="{% url 'following_list' username=profile_user.username %}" class="text-decoration-none text-white">
+                            <strong class="text-white following-count-val">{{ profile_user.profile.following_count }}</strong> following
+                        </a>
+                    </div>
+
+                    <!-- Line 4: Bio Text -->
+                    {% if profile_user.profile.bio %}
+                        <div class="text-white small mt-1" style="white-space: pre-wrap; line-height: 1.4; color: #e5e7eb;">{{ profile_user.profile.bio }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Button Row: Single Full-width Edit Profile (No View Archive) -->
+            <div class="w-100 mb-4">
+                {% if is_self %}
+                    <button type="button" class="btn w-100 py-2 fw-semibold text-white border-0" data-bs-toggle="modal" data-bs-target="#editProfileModal" style="background: #262626; border-radius: 10px; font-size: 0.9rem; transition: background 0.2s;">
+                        Edit profile
+                    </button>
+                {% else %}
+                    <div class="d-flex gap-2">
+                        <form method="POST" action="{% url 'follow_user' username=profile_user.username %}" class="follow-profile-ajax-form m-0 flex-grow-1">
+                            {% csrf_token %}
+                            {% if is_following %}
+                                <button type="submit" class="btn w-100 py-2 fw-semibold text-white border-0" style="background: #262626; border-radius: 10px; font-size: 0.9rem;">Following</button>
+                            {% else %}
+                                <button type="submit" class="btn btn-grad w-100 py-2 fw-semibold text-white border-0" style="border-radius: 10px; font-size: 0.9rem;">Follow</button>
+                            {% endif %}
+                        </form>
+                        <a href="{% url 'direct_chat' username=profile_user.username %}" class="btn py-2 px-4 fw-semibold text-white border-0 text-decoration-none" style="background: #262626; border-radius: 10px; font-size: 0.9rem;">
+                            Message
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Instagram Tab Bar (Strictly 2 Options: Posts Made & Saved Posts) -->
+        <div class="d-flex justify-content-center border-top border-dark mb-4">
+            <button class="btn btn-link text-white text-decoration-none fw-bold px-4 py-3 border-top border-2 border-white d-flex align-items-center justify-content-center" id="tab-posts-btn" style="border-radius: 0; min-width: 140px;" title="Posts Made">
+                <i class="bi bi-grid-3x3 fs-5"></i>
+            </button>
+            {% if is_self %}
+                <button class="btn btn-link text-white-50 text-decoration-none fw-bold px-4 py-3 d-flex align-items-center justify-content-center" id="tab-saved-btn" style="border-radius: 0; min-width: 140px;" title="Saved Posts">
+                    <i class="bi bi-bookmark fs-5"></i>
+                </button>
+            {% endif %}
+        </div>
+
+        <!-- 1. Posts Made Grid (3-Column Square) -->
+        <div id="posts-tab-content">
+            {% if posts %}
+                <div class="row g-2 g-md-3">
+                    {% for post in posts %}
+                        <div class="col-4">
+                            <a href="{% url 'post_detail' post_id=post.id %}" class="profile-media-tile d-block position-relative overflow-hidden text-decoration-none" style="aspect-ratio: 1 / 1; background: #0c0f16; border-radius: 2px;">
+                                {% if post.get_video_url %}
+                                    <video src="{{ post.get_video_url }}" class="w-100 h-100" style="object-fit: cover; display: block;" loop muted playsinline></video>
+                                    <i class="bi bi-camera-reels-fill position-absolute top-0 end-0 m-2 text-white" style="font-size: 1rem; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.8)); z-index: 2;"></i>
+                                {% elif post.get_image_url %}
+                                    <img src="{{ post.get_image_url }}" alt="Post" class="w-100 h-100" style="object-fit: cover; display: block;">
+                                {% else %}
+                                    <div class="w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3 text-center" style="background: linear-gradient(135deg, #1e1b4b 0%, #311042 50%, #4a044e 100%);">
+                                        <p class="text-white small mb-0 fw-semibold" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8rem;">
+                                            {{ post.caption|default:"Post" }}
+                                        </p>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Hover Overlay with Likes & Comments Count -->
+                                <div class="profile-tile-hover position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center gap-3 text-white" style="background: rgba(0,0,0,0.45); opacity: 0; transition: opacity 0.15s ease; pointer-events: none; z-index: 5;">
+                                    <span class="fw-bold"><i class="bi bi-heart-fill text-white me-1"></i>{{ post.likes_count }}</span>
+                                    <span class="fw-bold"><i class="bi bi-chat-fill text-white me-1"></i>{{ post.comments_count }}</span>
+                                </div>
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-secondary">
+                    <i class="bi bi-camera fs-1 mb-2 d-block text-white-50"></i>
+                    <h5 class="text-white fw-bold">No Posts Yet</h5>
+                    {% if is_self %}
+                        <p class="small text-white-50 mb-3">When you share photos and videos, they'll appear on your profile.</p>
+                        <button type="button" class="btn btn-grad rounded-pill px-4" onclick="toggleCreateModal(true)">Share your first photo</button>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- 2. Saved Posts Grid (Owner Only) -->
+        {% if is_self %}
+            <div id="saved-tab-content" style="display: none;">
+                {% if saved_posts %}
+                    <div class="row g-2 g-md-3">
+                        {% for post in saved_posts %}
+                            <div class="col-4">
+                                <a href="{% url 'post_detail' post_id=post.id %}" class="profile-media-tile d-block position-relative overflow-hidden text-decoration-none" style="aspect-ratio: 1 / 1; background: #0c0f16; border-radius: 2px;">
+                                    {% if post.get_video_url %}
+                                        <video src="{{ post.get_video_url }}" class="w-100 h-100" style="object-fit: cover; display: block;" loop muted playsinline></video>
+                                        <i class="bi bi-camera-reels-fill position-absolute top-0 end-0 m-2 text-white" style="font-size: 1rem; z-index: 2;"></i>
+                                    {% elif post.get_image_url %}
+                                        <img src="{{ post.get_image_url }}" alt="Saved Post" class="w-100 h-100" style="object-fit: cover; display: block;">
+                                    {% else %}
+                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center p-3 text-center" style="background: linear-gradient(135deg, #1e1b4b, #4a044e);">
+                                            <p class="text-white small mb-0">{{ post.caption|truncatechars:40 }}</p>
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="profile-tile-hover position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center gap-3 text-white" style="background: rgba(0,0,0,0.45); opacity: 0; transition: opacity 0.15s ease; pointer-events: none; z-index: 5;">
+                                        <span class="fw-bold"><i class="bi bi-heart-fill text-white me-1"></i>{{ post.likes_count }}</span>
+                                        <span class="fw-bold"><i class="bi bi-chat-fill text-white me-1"></i>{{ post.comments_count }}</span>
+                                    </div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5 text-secondary">
+                        <i class="bi bi-bookmark fs-1 mb-2 d-block text-white-50"></i>
+                        <h5 class="text-white fw-bold">No Saved Items</h5>
+                        <p class="small text-white-50 mb-0">Save photos and videos that you want to see again.</p>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<!-- =====================================================================
+     MODAL 1: CHANGE PROFILE PHOTO (100% Matching Screenshot 2)
+     ===================================================================== -->
+{% if is_self %}
+<div class="modal fade" id="changePhotoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content text-center overflow-hidden" style="background: #262626; border: 1px solid #363636; border-radius: 16px;">
+            
+            <!-- Modal Title -->
+            <div class="py-4 border-bottom border-dark">
+                <h5 class="text-white fw-bold mb-0" style="font-size: 1.15rem;">Change Profile Photo</h5>
+            </div>
+
+            <!-- Option 1: Upload Photo (Blue) -->
+            <button type="button" class="btn w-100 py-3 text-primary fw-bold border-bottom border-dark text-decoration-none" onclick="triggerProfilePhotoInput()" style="color: #0095f6 !important; font-size: 0.95rem; border-radius: 0;">
+                Upload Photo
+            </button>
+
+            <!-- Option 2: Remove Current Photo (Red) -->
+            <form method="POST" action="{% url 'user_profile' username=profile_user.username %}" class="m-0 border-bottom border-dark">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="remove_photo">
+                <button type="submit" class="btn w-100 py-3 text-danger fw-bold text-decoration-none" style="font-size: 0.95rem; border-radius: 0;">
+                    Remove Current Photo
+                </button>
+            </form>
+
+            <!-- Option 3: Cancel (White) -->
+            <button type="button" class="btn w-100 py-3 text-white text-decoration-none" data-bs-dismiss="modal" style="font-size: 0.95rem; border-radius: 0;">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden File Input for Instant Photo Upload -->
+<form method="POST" enctype="multipart/form-data" action="{% url 'user_profile' username=profile_user.username %}" id="hiddenPhotoForm" style="display: none;">
+    {% csrf_token %}
+    <input type="file" name="profile_pic" id="hiddenPhotoInput" accept="image/*" onchange="submitPhotoForm()">
+</form>
+
+<!-- =====================================================================
+     MODAL 2: EDIT PROFILE MODAL (Username, Gender & Bio)
+     ===================================================================== -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content p-4" style="background: #181b22; border: 1px solid #262626; border-radius: 20px;">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <h5 class="text-white fw-bold mb-0">Edit Profile</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <!-- Avatar Row inside Edit Modal -->
+            <div class="d-flex align-items-center justify-content-between p-3 rounded-3 mb-4" style="background: #262626;">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle overflow-hidden" style="width: 48px; height: 48px;">
+                        {% if profile_user.profile.get_profile_pic_url %}
+                            <img src="{{ profile_user.profile.get_profile_pic_url }}" alt="Avatar" class="w-100 h-100" style="object-fit: cover;">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center text-white fw-bold" style="background: var(--story-gradient);">
+                                {{ profile_user.username|slice:":1"|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="text-white fw-bold d-block small">{{ profile_user.username }}</span>
+                        <span class="text-white-50" style="font-size: 0.75rem;">Profile</span>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-link text-primary text-decoration-none fw-bold p-0" onclick="openPhotoModalFromEdit()" style="color: #0095f6 !important; font-size: 0.85rem;">
+                    Change photo
+                </button>
+            </div>
+
+            <!-- Edit Form -->
+            <form method="POST" enctype="multipart/form-data" action="{% url 'user_profile' username=profile_user.username %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label text-white-50 small fw-semibold">Username</label>
+                    <input type="text" name="username" value="{{ profile_user.username }}" class="form-control text-white" style="background: #262626; border: 1px solid #363636;" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-white-50 small fw-semibold">Gender / Pronouns</label>
+                    {{ profile_form.gender }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-white-50 small fw-semibold">Bio</label>
+                    {{ profile_form.bio }}
+                </div>
+                <div class="d-flex gap-2 justify-content-end mt-4">
+                    <button type="button" class="btn btn-outline-custom px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-grad px-4">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.profile-media-tile:hover .profile-tile-hover {
+    opacity: 1 !important;
+}
+</style>
+
+<script>
+function triggerProfilePhotoInput() {
+    const photoModal = bootstrap.Modal.getInstance(document.getElementById('changePhotoModal'));
+    if (photoModal) photoModal.hide();
+    document.getElementById('hiddenPhotoInput').click();
+}
+
+function submitPhotoForm() {
+    const input = document.getElementById('hiddenPhotoInput');
+    if (input.files && input.files[0]) {
+        document.getElementById('hiddenPhotoForm').submit();
+    }
+}
+
+function openPhotoModalFromEdit() {
+    const editModal = bootstrap.Modal.getInstance(document.getElementById('editProfileModal'));
+    if (editModal) editModal.hide();
+    const photoModal = new bootstrap.Modal(document.getElementById('changePhotoModal'));
+    photoModal.show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const tabPostsBtn = document.getElementById('tab-posts-btn');
+    const tabSavedBtn = document.getElementById('tab-saved-btn');
+
+    const postsContent = document.getElementById('posts-tab-content');
+    const savedContent = document.getElementById('saved-tab-content');
+
+    function resetTabs() {
+        [tabPostsBtn, tabSavedBtn].forEach(btn => {
+            if (btn) {
+                btn.classList.remove('text-white', 'border-top', 'border-2', 'border-white');
+                btn.classList.add('text-white-50');
+            }
+        });
+        if (postsContent) postsContent.style.display = 'none';
+        if (savedContent) savedContent.style.display = 'none';
+    }
+
+    if (tabPostsBtn) {
+        tabPostsBtn.addEventListener('click', function() {
+            resetTabs();
+            this.classList.add('text-white', 'border-top', 'border-2', 'border-white');
+            this.classList.remove('text-white-50');
+            postsContent.style.display = 'block';
+        });
+    }
+
+    if (tabSavedBtn) {
+        tabSavedBtn.addEventListener('click', function() {
+            resetTabs();
+            this.classList.add('text-white', 'border-top', 'border-2', 'border-white');
+            this.classList.remove('text-white-50');
+            savedContent.style.display = 'block';
+        });
+    }
+
+    // Video Hover Auto-play in Profile Grid
+    document.querySelectorAll('.profile-media-tile').forEach(card => {
+        const video = card.querySelector('video');
+        if (video) {
+            card.addEventListener('mouseenter', () => {
+                video.play().catch(() => {});
+            });
+            card.addEventListener('mouseleave', () => {
+                video.pause();
+                video.currentTime = 0;
+            });
+        }
+    });
+
+    // AJAX Follow / Unfollow Handlers
+    const followForm = document.querySelector('.follow-profile-ajax-form');
+    if (followForm) {
+        followForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const button = this.querySelector('button');
+            const followersSpan = document.querySelector('.followers-count-val');
+            const url = this.getAttribute('action');
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (followersSpan) followersSpan.textContent = data.followers_count;
+                if (data.following) {
+                    button.className = 'btn btn-outline-custom w-100 py-2 fw-semibold text-white border-0';
+                    button.style.background = '#262626';
+                    button.innerHTML = 'Following';
+                } else {
+                    button.className = 'btn btn-grad w-100 py-2 fw-semibold text-white border-0';
+                    button.style.background = '';
+                    button.innerHTML = 'Follow';
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

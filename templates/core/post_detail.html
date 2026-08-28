@@ -1,0 +1,396 @@
+{% extends 'core/base.html' %}
+{% block title %}Post by {{ post.user.username }} • {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center py-2" style="min-height: calc(100vh - 60px);">
+    <div class="col-12" style="max-width: 1060px;">
+        
+        <!-- Smart Dynamic Back Button -->
+        <a href="javascript:history.back()" class="btn btn-outline-custom mb-3 d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 text-white-50" style="font-size: 0.85rem;" id="post-detail-back-btn">
+            <i class="bi bi-arrow-left"></i> <span id="back-btn-label">Back</span>
+        </a>
+
+        <!-- Instagram Modal Container -->
+        <div class="d-flex flex-column flex-md-row overflow-hidden" style="border-radius: 4px; height: calc(100vh - 120px); max-height: 760px; min-height: 520px; background: #000000; border: 1px solid #262626; box-shadow: 0 30px 90px rgba(0,0,0,0.95);">
+            
+            <!-- Left Side: Full Media Container (Photo/Video - Unmuted Audio) -->
+            <div class="col-md-7 d-flex align-items-center justify-content-center position-relative h-100" style="background: #000000; overflow: hidden;">
+                {% if post.get_video_url %}
+                    <div class="w-100 h-100 position-relative d-flex align-items-center justify-content-center">
+                        <video id="detail-video-el" src="{{ post.get_video_url }}" class="w-100 h-100" style="object-fit: contain; cursor: pointer;" loop playsinline autoplay></video>
+                    </div>
+                {% elif post.get_image_url %}
+                    <img src="{{ post.get_image_url }}" alt="Post Content" class="w-100 h-100" style="object-fit: contain;">
+                {% else %}
+                    <!-- Aesthetic Text Post -->
+                    <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 text-center" style="background: linear-gradient(135deg, #1e1b4b 0%, #311042 50%, #4a044e 100%);">
+                        <i class="bi bi-chat-quote-fill display-4 text-white-50 mb-3"></i>
+                        <p class="text-white fs-5 fw-semibold mb-0" style="max-width: 400px; line-height: 1.5;">{{ post.caption }}</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Side: Instagram Comments & Details Sidebar -->
+            <div class="col-md-5 d-flex flex-column justify-content-between h-100" style="background: #000000; border-left: 1px solid #262626;">
+                
+                <!-- 1. Header (Author Info & Follow) -->
+                <div class="p-3 d-flex align-items-center justify-content-between" style="border-bottom: 1px solid #262626;">
+                    <div class="d-flex align-items-center gap-3">
+                        <a href="{% url 'user_profile' username=post.user.username %}" class="text-decoration-none">
+                            {% if post.user.profile.get_profile_pic_url %}
+                                <img src="{{ post.user.profile.get_profile_pic_url }}" alt="Avatar" class="rounded-circle" style="width: 36px; height: 36px; object-fit: cover;">
+                            {% else %}
+                                <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 0.85rem; background: var(--story-gradient);">
+                                    {{ post.user.username|slice:":1"|upper }}
+                                </div>
+                            {% endif %}
+                        </a>
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <a href="{% url 'user_profile' username=post.user.username %}" class="fw-bold text-white text-decoration-none small">
+                                    {{ post.user.username }}
+                                </a>
+                                {% if request.user != post.user %}
+                                    <span class="text-white-50 small">•</span>
+                                    <form method="POST" action="{% url 'follow_user' username=post.user.username %}" class="follow-ajax-form m-0 d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-link p-0 fw-bold small text-decoration-none" style="color: #0095f6 !important; font-size: 0.82rem;">
+                                            {% if post.user.is_followed_by_user %}Following{% else %}Follow{% endif %}
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                            <span class="text-white-50 d-block" style="font-size: 0.7rem;">Original Audio • {{ post.user.username }}</span>
+                        </div>
+                    </div>
+
+                    <!-- 3 Dots Options -->
+                    <div class="dropdown">
+                        <button class="btn btn-link text-white p-0 border-0 text-decoration-none" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots fs-5"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark" style="background: #262626; border: 1px solid #363636;">
+                            {% if request.user == post.user %}
+                                <li>
+                                    <form method="POST" action="{% url 'delete_post' post_id=post.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item text-danger small py-2" onclick="return confirm('Delete this post?')">
+                                            <i class="bi bi-trash me-2"></i> Delete
+                                        </button>
+                                    </form>
+                                </li>
+                            {% endif %}
+                            <li><a class="dropdown-item small py-2" href="{% url 'user_profile' username=post.user.username %}"><i class="bi bi-person me-2"></i> View Profile</a></li>
+                            <li><a class="dropdown-item small py-2" href="{% url 'explore' %}"><i class="bi bi-compass me-2"></i> Explore</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 2. Scrollable Comments Stream -->
+                <div class="p-3 flex-grow-1 overflow-y-auto" id="comments-container" style="scrollbar-width: thin;">
+                    <!-- Author Caption Row -->
+                    {% if post.caption %}
+                        <div class="d-flex align-items-start gap-3 mb-4">
+                            <a href="{% url 'user_profile' username=post.user.username %}">
+                                {% if post.user.profile.get_profile_pic_url %}
+                                    <img src="{{ post.user.profile.get_profile_pic_url }}" alt="Avatar" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.75rem; background: var(--story-gradient);">
+                                        {{ post.user.username|slice:":1"|upper }}
+                                    </div>
+                                {% endif %}
+                            </a>
+                            <div class="small">
+                                <div>
+                                    <a href="{% url 'user_profile' username=post.user.username %}" class="fw-bold text-white text-decoration-none me-1">{{ post.user.username }}</a>
+                                    <span class="text-white" style="line-height: 1.4;">{{ post.caption }}</span>
+                                </div>
+                                <span class="text-white-50 mt-1 d-block" style="font-size: 0.7rem;">{{ post.created_at|timesince }} ago</span>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Comments List -->
+                    {% for comment in comments %}
+                        <div class="d-flex align-items-start justify-content-between gap-2 mb-3 comment-item-row" id="comment-{{ comment.id }}">
+                            <div class="d-flex align-items-start gap-3">
+                                <a href="{% url 'user_profile' username=comment.user.username %}">
+                                    {% if comment.user.profile.get_profile_pic_url %}
+                                        <img src="{{ comment.user.profile.get_profile_pic_url }}" alt="Avatar" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
+                                    {% else %}
+                                        <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.75rem; background: var(--story-gradient);">
+                                            {{ comment.user.username|slice:":1"|upper }}
+                                        </div>
+                                    {% endif %}
+                                </a>
+                                <div class="small">
+                                    <div>
+                                        <a href="{% url 'user_profile' username=comment.user.username %}" class="fw-bold text-white text-decoration-none me-1">{{ comment.user.username }}</a>
+                                        <span class="text-light" style="line-height: 1.35;">{{ comment.content }}</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-3 text-white-50 mt-1" style="font-size: 0.7rem;">
+                                        <span>{{ comment.created_at|timesince }} ago</span>
+                                        <span role="button" class="text-white-50 text-decoration-none fw-semibold" onclick="setCommentReply('{{ comment.user.username }}')">Reply</span>
+                                        {% if comment.user == request.user or post.user == request.user %}
+                                            <button type="button" class="btn btn-link text-danger p-0 border-0 text-decoration-none small" style="font-size: 0.7rem;" onclick="deleteCommentAjax({{ comment.id }})">
+                                                Delete
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-link text-white-50 p-0 border-0" style="font-size: 0.75rem;">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    {% empty %}
+                        <p class="text-secondary small text-center py-4 my-auto" id="no-comments-msg">No comments yet. Start the conversation!</p>
+                    {% endfor %}
+                </div>
+
+                <!-- 3. Bottom Action Tray & Likes -->
+                <div class="p-3" style="border-top: 1px solid #262626;">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Like -->
+                            <form method="POST" action="{% url 'like_post' post_id=post.id %}" class="like-ajax-form m-0">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-link text-white p-0 border-0 text-decoration-none {% if is_liked %}liked{% endif %}" style="font-size: 1.5rem;">
+                                    <i class="bi {% if is_liked %}bi-heart-fill text-danger{% else %}bi-heart text-white{% endif %}"></i>
+                                </button>
+                            </form>
+                            
+                            <!-- Comment -->
+                            <button type="button" class="btn btn-link text-white p-0 border-0 text-decoration-none" onclick="document.getElementById('post-comment-input').focus()" style="font-size: 1.5rem;">
+                                <i class="bi bi-chat"></i>
+                            </button>
+
+                            <!-- Share -->
+                            <button type="button" class="btn btn-link text-white p-0 border-0 text-decoration-none" onclick="openSharePostModal('{{ post.id }}')" title="Share" style="font-size: 1.5rem;">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </div>
+
+                        <!-- Bookmark -->
+                        <form method="POST" action="{% url 'toggle_bookmark' post_id=post.id %}" class="bookmark-ajax-form m-0">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-link text-white p-0 border-0 text-decoration-none {% if is_bookmarked %}saved{% endif %}" style="font-size: 1.5rem;">
+                                <i class="bi {% if is_bookmarked %}bi-bookmark-fill text-white{% else %}bi-bookmark text-white{% endif %}"></i>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Likes Count -->
+                    <div class="fw-bold text-white small mb-1"><span class="likes-count">{{ post.likes_count }}</span> likes</div>
+                    <span class="text-white-50 text-uppercase d-block mb-3" style="font-size: 0.65rem; letter-spacing: 0.05em;">{{ post.created_at|date:"F j" }}</span>
+
+                    <!-- Instagram Comment Input Box with Emoji Icon -->
+                    <form method="POST" action="{% url 'comment_post' post_id=post.id %}" class="comment-ajax-form d-flex align-items-center pt-2" style="border-top: 1px solid #262626;">
+                        {% csrf_token %}
+                        <i class="bi bi-emoji-smile text-white fs-5 me-3" style="cursor: pointer;"></i>
+                        <input type="text" name="content" id="post-comment-input" class="form-control bg-transparent border-0 p-0 text-white small" placeholder="Add a comment..." required style="box-shadow: none;">
+                        <button type="submit" class="btn btn-link text-primary text-decoration-none fw-bold p-0 ms-2 small" style="font-size: 0.85rem;">Post</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('detail-video-el');
+
+    if (video) {
+        // Unmute video and enable full sound
+        video.muted = false;
+        video.volume = 1.0;
+        
+        // Attempt immediate playback with sound
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(function() {
+                // If browser blocks unmuted autoplay before interaction, play on first user touch/click
+                document.addEventListener('click', function unlockAudio() {
+                    video.muted = false;
+                    video.volume = 1.0;
+                    video.play().catch(function() {});
+                    document.removeEventListener('click', unlockAudio);
+                }, { once: true });
+            });
+        }
+
+        // Click to toggle play/pause
+        video.addEventListener('click', function() {
+            if (video.paused) {
+                video.muted = false;
+                video.volume = 1.0;
+                video.play();
+            } else {
+                video.pause();
+            }
+        });
+    }
+
+    // AJAX Like Handler
+    const likeForm = document.querySelector('.like-ajax-form');
+    if (likeForm) {
+        likeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button');
+            const icon = btn.querySelector('i');
+            const countSpan = document.querySelector('.likes-count');
+            const url = this.getAttribute('action');
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (countSpan) countSpan.textContent = data.likes_count;
+                if (data.liked) {
+                    btn.classList.add('liked');
+                    icon.className = 'bi bi-heart-fill text-danger';
+                } else {
+                    btn.classList.remove('liked');
+                    icon.className = 'bi bi-heart text-white';
+                }
+            });
+        });
+    }
+
+    // AJAX Bookmark Handler
+    const bookmarkForm = document.querySelector('.bookmark-ajax-form');
+    if (bookmarkForm) {
+        bookmarkForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button');
+            const icon = btn.querySelector('i');
+            const url = this.getAttribute('action');
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.bookmarked) {
+                    btn.classList.add('saved');
+                    icon.className = 'bi bi-bookmark-fill text-white';
+                } else {
+                    btn.classList.remove('saved');
+                    icon.className = 'bi bi-bookmark text-white';
+                }
+            });
+        });
+    }
+
+    // AJAX Comment Handler
+    const commentForm = document.querySelector('.comment-ajax-form');
+    const commentsContainer = document.getElementById('comments-container');
+    const noCommentsMsg = document.getElementById('no-comments-msg');
+
+    if (commentForm && commentsContainer) {
+        commentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const input = this.querySelector('input[name="content"]');
+            if (!input.value.trim()) return;
+            const formData = new FormData(this);
+
+            fetch(this.getAttribute('action'), {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (noCommentsMsg) noCommentsMsg.style.display = 'none';
+                    const c = data.comment;
+                    const commentEl = document.createElement('div');
+                    commentEl.className = 'd-flex align-items-start justify-content-between gap-2 mb-3 comment-item-row';
+                    commentEl.id = `comment-${c.id}`;
+                    commentEl.innerHTML = `
+                        <div class="d-flex align-items-start gap-3">
+                            <a href="${c.user_url}">
+                                ${c.profile_pic ? `<img src="${c.profile_pic}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">` : `<div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.75rem; background: var(--story-gradient);">${c.username.charAt(0).toUpperCase()}</div>`}
+                            </a>
+                            <div class="small">
+                                <div>
+                                    <a href="${c.user_url}" class="fw-bold text-white text-decoration-none me-1">${c.username}</a>
+                                    <span class="text-light" style="line-height: 1.35;">${c.content}</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-3 text-white-50 mt-1" style="font-size: 0.7rem;">
+                                    <span>Just now</span>
+                                    <span role="button" class="text-white-50 text-decoration-none fw-semibold" onclick="setCommentReply('${c.username}')">Reply</span>
+                                    <button type="button" class="btn btn-link text-danger p-0 border-0 text-decoration-none small" style="font-size: 0.7rem;" onclick="deleteCommentAjax(${c.id})">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-link text-white-50 p-0 border-0" style="font-size: 0.75rem;">
+                            <i class="bi bi-heart"></i>
+                        </button>
+                    `;
+                    commentsContainer.appendChild(commentEl);
+                    input.value = '';
+                    commentsContainer.scrollTop = commentsContainer.scrollHeight;
+                }
+            });
+        });
+    }
+
+    // Dynamic Context-Aware Back Button Label
+    const backLabel = document.getElementById('back-btn-label');
+    if (document.referrer && backLabel) {
+        if (document.referrer.includes('/user/')) {
+            backLabel.textContent = 'Back to Profile';
+        } else if (document.referrer.includes('/explore')) {
+            backLabel.textContent = 'Back to Explore';
+        } else if (document.referrer.includes('/reels')) {
+            backLabel.textContent = 'Back to Reels';
+        } else {
+            backLabel.textContent = 'Back';
+        }
+    }
+});
+
+window.deleteCommentAjax = function(commentId) {
+    if (!commentId || !confirm('Delete this comment?')) return;
+    fetch(`/comment/delete/${commentId}/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const el = document.getElementById(`comment-${commentId}`);
+            if (el) {
+                el.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                el.style.opacity = '0';
+                el.style.transform = 'translateX(-10px)';
+                setTimeout(() => el.remove(), 200);
+            }
+        }
+    })
+    .catch(err => console.error("Error deleting comment:", err));
+};
+
+window.setCommentReply = function(username) {
+    const input = document.querySelector('input[name="content"]');
+    if (input) {
+        input.value = `@${username} `;
+        input.focus();
+    }
+};
+</script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends 'core/base.html' %}
+{% block title %}Followers of {{ profile_user.username }} • {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <a href="{% url 'user_profile' username=profile_user.username %}" class="btn btn-outline-custom mb-4 d-inline-flex align-items-center gap-2">
+            <i class="bi bi-arrow-left"></i> Back to @{{ profile_user.username }}
+        </a>
+
+        <div class="glass-card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom border-dark">
+                <h4 class="text-white fw-bold mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-people-fill text-primary"></i> Followers ({{ followers.count }})
+                </h4>
+            </div>
+            
+            <div class="d-flex flex-column gap-3">
+                {% for relation in followers %}
+                    <div class="d-flex justify-content-between align-items-center p-3 rounded-4" style="background: var(--bg-surface-2); border: 1px solid var(--border-subtle);">
+                        <div class="d-flex align-items-center gap-3">
+                            <a href="{% url 'user_profile' username=relation.follower.username %}">
+                                {% if relation.follower.profile.get_profile_pic_url %}
+                                    <img src="{{ relation.follower.profile.get_profile_pic_url }}" alt="Avatar" class="rounded-circle" style="width: 48px; height: 48px; object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; font-size: 1.1rem; background: var(--story-gradient);">
+                                        {{ relation.follower.username|slice:":1"|upper }}
+                                    </div>
+                                {% endif %}
+                            </a>
+                            <div>
+                                <a href="{% url 'user_profile' username=relation.follower.username %}" class="fw-bold text-white text-decoration-none d-block">
+                                    {{ relation.follower.username }}
+                                </a>
+                                <small class="text-secondary">{{ relation.follower.profile.bio|truncatechars:35|default:"Zyra Creator" }}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex align-items-center gap-2">
+                            {% if relation.follower != user %}
+                                <a href="{% url 'direct_chat' username=relation.follower.username %}" class="btn btn-sm btn-outline-custom rounded-pill px-3">
+                                    Message
+                                </a>
+                                <form method="POST" action="{% url 'follow_user' username=relation.follower.username %}">
+                                    {% csrf_token %}
+                                    {% if relation.follower.is_followed_by_user %}
+                                        <button type="submit" class="btn btn-sm btn-outline-custom rounded-pill px-3">Following</button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-sm btn-grad rounded-pill px-3">Follow</button>
+                                    {% endif %}
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="text-center py-5 text-secondary">
+                        <i class="bi bi-people fs-1 d-block mb-3"></i>
+                        <h6 class="text-white">No Followers Yet</h6>
+                        <p class="small mb-0">When people follow this profile, they will appear here.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

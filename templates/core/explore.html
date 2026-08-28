@@ -1,0 +1,160 @@
+{% extends 'core/base.html' %}
+{% block title %}Explore • {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12" style="max-width: 960px;">
+        
+        <!-- Instagram Search Capsule (Centered at Top) -->
+        <div class="d-flex justify-content-center mb-4">
+            <form method="GET" action="{% url 'explore' %}" style="width: 100%; max-width: 360px;">
+                <div class="position-relative">
+                    <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-secondary" style="font-size: 0.85rem;"></i>
+                    <input type="text" name="q" value="{{ query }}" class="form-control text-white ps-5 pe-4 py-2 border-0" placeholder="Search" style="border-radius: 10px; font-size: 0.9rem; background: #262626;">
+                    {% if query %}
+                        <a href="{% url 'explore' %}" class="position-absolute top-50 end-0 translate-middle-y me-3 text-secondary text-decoration-none" title="Clear">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        {% if query and users_results %}
+            <!-- Matching Creators Section -->
+            <div class="mb-4">
+                <span class="text-white-50 small fw-bold text-uppercase mb-2 d-block" style="letter-spacing: 0.05em;">Creators</span>
+                <div class="row g-2">
+                    {% for profile_user in users_results %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="p-2 px-3 d-flex align-items-center justify-content-between rounded-3" style="background: #181b22; border: 1px solid #2a2f3b;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <a href="{% url 'user_profile' username=profile_user.username %}">
+                                        {% if profile_user.profile.get_profile_pic_url %}
+                                            <img src="{{ profile_user.profile.get_profile_pic_url }}" alt="Profile" class="rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
+                                        {% else %}
+                                            <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 0.9rem; background: var(--story-gradient);">
+                                                {{ profile_user.username|slice:":1"|upper }}
+                                            </div>
+                                        {% endif %}
+                                    </a>
+                                    <div>
+                                        <a href="{% url 'user_profile' username=profile_user.username %}" class="text-white fw-bold text-decoration-none d-block small">
+                                            {{ profile_user.username }}
+                                        </a>
+                                        <span class="text-secondary" style="font-size: 0.7rem;">{{ profile_user.profile.bio|truncatechars:24|default:"Creator" }}</span>
+                                    </div>
+                                </div>
+                                
+                                <form method="POST" action="{% url 'follow_user' username=profile_user.username %}" class="follow-ajax-form m-0">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm {% if profile_user.is_followed_by_user %}btn-outline-custom{% else %}btn-grad{% endif %} rounded-pill px-3 py-1" style="font-size: 0.75rem;">
+                                        {% if profile_user.is_followed_by_user %}Following{% else %}Follow{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Authentic 4-Column Instagram Explore Grid (Edge-to-Edge with 4px gap) -->
+        <div class="mb-5">
+            {% if posts %}
+                <div class="row g-1 g-md-2" id="explore-media-grid">
+                    {% for post in posts %}
+                        <div class="col-6 col-md-3">
+                            <a href="{% url 'post_detail' post_id=post.id %}" class="explore-item-card d-block position-relative overflow-hidden text-decoration-none" style="aspect-ratio: 4 / 5; background: #0c0f16; border-radius: 4px;">
+                                {% if post.get_video_url %}
+                                    <video src="{{ post.get_video_url }}" class="w-100 h-100 explore-video-el" style="object-fit: cover; display: block;" loop muted playsinline></video>
+                                    <!-- Instagram Reel Icon in Top Right -->
+                                    <i class="bi bi-camera-reels-fill position-absolute top-0 end-0 m-2 text-white" style="font-size: 1rem; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.9)); z-index: 2;"></i>
+                                {% elif post.get_image_url %}
+                                    <img src="{{ post.get_image_url }}" alt="Post" class="w-100 h-100 explore-img-el" style="object-fit: cover; display: block;">
+                                {% else %}
+                                    <!-- Aesthetic Text Post -->
+                                    <div class="w-100 h-100 d-flex flex-column justify-content-between p-3 position-relative overflow-hidden" style="background: linear-gradient(135deg, #1e1b4b 0%, #311042 50%, #4a044e 100%);">
+                                        <span class="text-white-50 small">@{{ post.user.username }}</span>
+                                        <p class="text-white small mb-0 fw-semibold" style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; font-size: 0.82rem;">
+                                            {{ post.caption|default:"Zyra Creator Post" }}
+                                        </p>
+                                        <i class="bi bi-chat-quote-fill text-white-50 small"></i>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Frosted Hover Overlay (Pointer Events None) -->
+                                <div class="explore-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center gap-3 text-white" style="background: rgba(0,0,0,0.45); opacity: 0; transition: opacity 0.15s ease; pointer-events: none; z-index: 5;">
+                                    <span class="fw-bold"><i class="bi bi-heart-fill text-white me-1"></i>{{ post.likes_count }}</span>
+                                    <span class="fw-bold"><i class="bi bi-chat-fill text-white me-1"></i>{{ post.comments_count }}</span>
+                                </div>
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-secondary">
+                    <i class="bi bi-compass fs-1 mb-2 d-block text-white-50"></i>
+                    <p class="mb-0">No posts found{% if query %} for "{{ query }}"{% endif %}.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.explore-item-card {
+    transition: opacity 0.15s ease;
+    cursor: pointer;
+}
+
+.explore-item-card:hover .explore-hover-overlay {
+    opacity: 1 !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Video Hover Auto-play in Explore Grid
+    document.querySelectorAll('.explore-item-card').forEach(card => {
+        const video = card.querySelector('.explore-video-el');
+        if (video) {
+            card.addEventListener('mouseenter', () => {
+                video.play().catch(() => {});
+            });
+            card.addEventListener('mouseleave', () => {
+                video.pause();
+                video.currentTime = 0;
+            });
+        }
+    });
+
+    // AJAX Follow Handlers
+    document.querySelectorAll('.follow-ajax-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button');
+            const url = this.getAttribute('action');
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.following) {
+                    btn.className = 'btn btn-sm btn-outline-custom rounded-pill px-3 py-1';
+                    btn.textContent = 'Following';
+                } else {
+                    btn.className = 'btn btn-sm btn-grad rounded-pill px-3 py-1';
+                    btn.textContent = 'Follow';
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
