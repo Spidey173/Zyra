@@ -1,16 +1,19 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth.models import User
 from django.contrib import messages
 from ..forms import RegistrationForm
 
+@ensure_csrf_cookie
 def landing(request):
     """Landing page for unauthenticated visitors. Authenticated users redirect to home."""
     if request.user.is_authenticated:
         return redirect('home')
     return render(request, 'core/landing.html')
 
+@ensure_csrf_cookie
 def register_view(request):
     """User registration view."""
     if request.user.is_authenticated:
@@ -29,6 +32,7 @@ def register_view(request):
         form = RegistrationForm()
     return render(request, 'core/register.html', {'form': form})
 
+@ensure_csrf_cookie
 def login_view(request):
     """User login view."""
     if request.user.is_authenticated:
