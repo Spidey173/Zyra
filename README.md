@@ -1,130 +1,117 @@
-# 🌌 Zyra - Next-Gen Social Media & Real-Time Messaging Platform
+# ✨ Zyra — Next-Gen Social Media & Real-Time Chat
 
-<div align="center">
-
-![Zyra Hero](static/css/style.css)
-
-**Zyra** is a state-of-the-art, full-featured social platform built with **Django 5**, **Django Channels (ASGI)**, **Daphne**, and **Neon PostgreSQL**. Designed with an edge-to-edge Instagram aesthetic, dark mode styling, and sub-30ms real-time messaging.
-
-[![Django](https://img.shields.io/badge/Django-5.2-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
-[![WebSockets](https://img.shields.io/badge/WebSockets-Django%20Channels-0c4b33?style=for-the-badge&logo=django&logoColor=white)](https://channels.readthedocs.io/)
-[![Database](https://img.shields.io/badge/Neon-PostgreSQL-00e699?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
-[![Server](https://img.shields.io/badge/ASGI-Daphne-4B8BBE?style=for-the-badge&logo=python&logoColor=white)](https://github.com/django/daphne)
-[![Deployment](https://img.shields.io/badge/Render-Ready-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/)
-
-</div>
+A modern, fast, and beginner-friendly social media web app inspired by Instagram. Built using **Python & Django 5**, **WebSockets (Django Channels)**, and **Neon PostgreSQL**.
 
 ---
 
-## ✨ Key Features
+## 🌟 What Can You Do on Zyra?
 
-### ⚡ Real-Time Direct Messaging (Instagram Direct Experience)
-- **⚡ Sub-30ms Instant Delivery**: Full-duplex WebSockets powered by **Django Channels** and **Daphne ASGI**.
-- **✏️ 5-Minute Message Editing**: Edit your sent messages strictly within 5 minutes of creation, tagged with live `(edited)` indicators.
-- **🗑️ Delete / Unsend Anytime**: Seamlessly delete your messages for all participants with zero time restrictions.
-- **😍 Interactive Emoji Reactions**: React to any message with persistent emoji badges (`❤️`, `🔥`, `😂`, `😮`, `😢`, `👏`, `👍`) synced in real time.
-- **💬 Live Typing Indicators**: Real-time 3-dot animated pulse when your chat partner is typing.
-- **🛡️ Hybrid Fallback Sync**: Resilient background polling takes over automatically if a connection drops.
-- **🖼️ Rich Media & Post Sharing**: Share photos and preview shared feed posts directly in direct message bubbles.
+### 💬 1. Instant Direct Messaging (Instagram Style)
+- **⚡ Super Fast Chat**: Real-time messaging with live typing indicators.
+- **✏️ Edit Messages**: Edit any message within 5 minutes.
+- **🗑️ Delete / Unsend**: Unsend any message anytime.
+- **❤️ Emoji Reactions**: Quick-react to messages with hearts and emojis.
+- **🟢 Live Online Status**: Shows *"Active now"* or *"Active 5m ago"* accurately.
 
-### 📸 Feed, Reels & Stories
-- **Interactive Home Feed**: Infinite scrolling, double-tap heart liking, bookmarking, and post detail modal.
-- **Reels Experience**: Dedicated immersive video player with vertical media feeds.
-- **Stories with Music & Expiry**: Share 24-hour visual stories with custom audio tracks.
-- **Comment Management**: Comment on posts and delete comments in real time with AJAX.
+### 📸 2. Feed, Reels & Stories
+- **📱 Home Feed**: Share photos, captions, and like with a double-tap ❤️.
+- **🎥 60fps Reels**: Vertical video scroll experience.
+- **⏳ 24h Stories**: Share photos/videos with music and an easy **Delete Story** button.
+- **💬 Comments & Likes**: Comment, like, and bookmark posts instantly.
 
-### 🔔 Activity & Notifications
-- **Filtered Activity**: Filter notifications strictly by **Comments** and **Follows** with dynamic empty-state handling and unread badge sync.
-
-### 👤 Profile & Social Graph
-- **Personalized Profiles**: Bio, gender pronouns, avatars, followers / following modal views, and instant AJAX follow/unfollow toggle.
+### 👤 3. Profiles & Social Graph
+- **Personalized Profile**: Add bio, pronouns, and custom avatar.
+- **Follow / Unfollow**: Follow creators and view follower lists.
 
 ---
 
-## 🛠️ Technology Stack
+## 🚀 Quick Start (Local Setup)
 
-| Layer | Technology |
-| :--- | :--- |
-| **Backend Framework** | [Django 5.2](https://www.djangoproject.com/) (Python 3.11+) |
-| **Real-Time Asynchronous Engine** | [Django Channels](https://channels.readthedocs.io/) & [Daphne ASGI](https://github.com/django/daphne) |
-| **Production Database** | [Neon Serverless PostgreSQL](https://neon.tech/) (with Connection Pooling & SSL) |
-| **Channel Layer** | In-Memory (Standard) / [Redis](https://redis.io/) (High-Scale Multi-Instance) |
-| **Static Assets** | [WhiteNoise](http://whitenoise.evans.io/) Compressed Storage |
-| **Styling & UI** | Custom Vanilla CSS3, Glassmorphism, Bootstrap 5 Icons |
+Follow these 3 easy steps to run Zyra on your computer:
 
----
-
-## 🚀 One-Click Deploy to Render
-
-Zyra is fully pre-configured for instant deployment on [Render](https://render.com/) via `render.yaml`, `build.sh`, and `Procfile`.
-
-### Steps to Deploy:
-1. Fork or push this repository to your **GitHub** account.
-2. Log in to **[Render Dashboard](https://dashboard.render.com/)**.
-3. Click **New +** $\rightarrow$ **Web Service** $\rightarrow$ connect your **Zyra** repository.
-4. Set the following parameters:
-   - **Environment**: `Python`
-   - **Build Command**: `./build.sh`
-   - **Start Command**: `daphne -b 0.0.0.0 -p $PORT config.asgi:application`
-5. Configure your **Environment Variables**:
-   - `DATABASE_URL`: `postgresql://neondb_owner:...@...neon.tech/neondb?sslmode=require`
-   - `SECRET_KEY`: *(Generate secure key)*
-   - `PYTHON_VERSION`: `3.11.9`
-   - `DEBUG`: `False`
-6. Click **Create Web Service**!
-
----
-
-## 💻 Local Development Setup
-
-### 1. Clone the Repository
+### Step 1: Clone & Navigate to Folder
 ```bash
 git clone https://github.com/Spidey173/Zyra.git
 cd Zyra
 ```
 
-### 2. Create and Activate Virtual Environment
+### Step 2: Create & Activate Virtual Environment
 ```bash
-# macOS / Linux
+# On macOS / Linux:
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Windows
+# On Windows:
 python -m venv .venv
 .venv\Scripts\activate
 ```
 
-### 3. Install Dependencies
+### Step 3: Install Packages & Run the Server
 ```bash
 pip install -r requirements.txt
-```
-
-### 4. Configure Database & Environment
-Create a `.env` file or export your connection string:
-```bash
-export DATABASE_URL="postgresql://neondb_owner:npg_hqrO7D5glaKj@ep-round-smoke-ael2llxu-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-```
-
-### 5. Run Database Migrations
-```bash
 python manage.py migrate
+python manage.py runserver
 ```
 
-### 6. Start the Daphne ASGI Server
-```bash
-daphne -b 127.0.0.1 -p 8000 config.asgi:application
-```
-Visit **`http://127.0.0.1:8000/`** to explore Zyra!
+Now open **http://127.0.0.1:8000** in your browser and enjoy Zyra! 🎉
 
 ---
 
-## 🔒 Security & Performance Features
-- **AllowedHostsOriginValidator**: Secures WebSocket handshake origins against cross-site hijacking.
-- **5-Minute Message Lock**: Prevents unauthorized message tampering beyond the 5-minute window.
-- **Prepared Database Indices**: Optimized index on `(conversation, created_at)` and `(sender, created_at)` for instant DB lookups.
-- **CSRF Token Protection**: Global cookie extraction with secure HTTPS origin verification.
+## 🔑 Demo Login Accounts
+
+You can register a new account on the signup page or log in with the test accounts:
+
+| Username | Password | Role |
+| :--- | :--- | :--- |
+| **`Spidey`** | **`Spidey@173`** | Superuser / Admin |
+| **`Ash`** | **`Password123!`** | Tester / Chat Partner |
 
 ---
 
-## 📄 License
-This project is open-source under the [MIT License](LICENSE).
+## 📂 Project Structure
+
+```text
+Zyra/
+├── config/              # Django settings, URLs, and ASGI/WSGI setup
+├── core/                # Main application logic
+│   ├── consumers.py     # WebSocket logic for real-time messaging
+│   ├── models.py        # Database models (User, Post, Message, Story, etc.)
+│   ├── views/           # Views (Feed, Reels, Stories, Direct Chat, Profile)
+│   └── urls.py          # App URL routes
+├── templates/core/      # Modern dark-mode HTML templates
+├── static/              # CSS styling, icons, and JavaScript
+├── media/               # Uploaded photos, videos, and stories
+├── build.sh             # Deployment build script
+├── Procfile             # Render ASGI web server command
+└── requirements.txt     # Python project dependencies
+```
+
+---
+
+## ☁️ Live Cloud Deployment (Render + Neon)
+
+Zyra is 100% ready for free deployment on **Render**:
+
+1. Push your code to **GitHub**.
+2. Create a new **Web Service** on [Render Dashboard](https://dashboard.render.com/).
+3. Connect your repository and configure:
+   - **Build Command**: `./build.sh`
+   - **Start Command**: `daphne -b 0.0.0.0 -p $PORT config.asgi:application`
+4. Add your **Environment Variables**:
+   - `DATABASE_URL`: `postgresql://<user>:<password>@<neon-host>/neondb?sslmode=require`
+   - `PYTHON_VERSION`: `3.11.9`
+   - `DEBUG`: `False`
+   - `SECRET_KEY`: `<your-random-secret-key>`
+5. Click **Deploy Web Service**!
+
+---
+
+## 💡 Tech Stack
+- **Backend**: Python 3.11+, Django 5.2
+- **Real-Time WebSockets**: Django Channels, Daphne ASGI
+- **Database**: SQLite (Local) / Neon PostgreSQL (Production)
+- **Frontend**: HTML5, Vanilla CSS3 (Dark Glassmorphism), Bootstrap Icons
+
+---
+
+Made with ❤️ by the Zyra Team.
