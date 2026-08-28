@@ -7,3 +7,4 @@ psycopg[binary]>=3.1.18
 daphne>=4.1.0
 channels>=4.1.0
 channels-redis>=4.2.0
+uvicorn[standard]>=0.28.0

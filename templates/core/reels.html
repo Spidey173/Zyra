@@ -12,7 +12,7 @@
                     
                     <!-- Video -->
                     <div class="reel-video-wrapper w-100 h-100 position-relative">
-                        <video src="{{ post.get_video_url }}" class="reel-video w-100 h-100" style="object-fit: cover; cursor: pointer;" loop playsinline autoplay muted></video>
+                        <video src="{{ post.get_video_url }}" class="reel-video w-100 h-100" style="object-fit: cover; cursor: pointer;" loop playsinline preload="metadata" muted></video>
                         
                         <!-- Double tap heart -->
                         <i class="bi bi-heart-fill double-tap-heart"></i>
