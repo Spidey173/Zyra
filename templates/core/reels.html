@@ -22,11 +22,6 @@
                             <i class="bi bi-volume-mute-fill fs-6"></i>
                         </button>
 
-                        <!-- Center Play/Pause Flash Indicator -->
-                        <div class="video-play-indicator">
-                            <i class="bi bi-play-fill"></i>
-                        </div>
-
                         <!-- Bottom Creator Info Overlay -->
                         <div class="position-absolute bottom-0 start-0 w-100 p-3" style="z-index: 10; background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);">
                             <div class="d-flex align-items-center gap-2 mb-2">
@@ -210,23 +205,13 @@ document.addEventListener('DOMContentLoaded', function() {
     videos.forEach(video => {
         const wrapper = video.closest('.reel-video-wrapper');
         const audioBtn = wrapper.querySelector('.video-audio-toggle');
-        const playIndicator = wrapper.querySelector('.video-play-indicator');
-        const playIcon = playIndicator.querySelector('i');
-        const heart = wrapper.querySelector('.double-tap-heart');
-        const reelItem = video.closest('.reel-item');
-        const likeForm = reelItem.querySelector('.like-ajax-form');
-
         // Click to play/pause
         video.addEventListener('click', function() {
             if (video.paused) {
                 video.play();
-                playIcon.className = 'bi bi-play-fill';
             } else {
                 video.pause();
-                playIcon.className = 'bi bi-pause-fill';
             }
-            playIndicator.classList.add('show');
-            setTimeout(() => playIndicator.classList.remove('show'), 500);
         });
 
         // Double click to like
