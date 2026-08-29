@@ -321,3 +321,35 @@ def get_user_conversations(user):
         conversations.append(conv)
 
     return conversations
+
+
+def update_conversation_theme(conversation_id, user, theme_key='default', custom_image=None):
+    """
+    Updates the shared theme of a conversation for all participants.
+    Supports preset theme keys and custom background image uploads.
+    """
+    try:
+        conversation = Conversation.objects.get(id=conversation_id)
+    except Conversation.DoesNotExist:
+        raise ValidationError("Conversation does not exist.")
+
+    if not conversation.participants.filter(user=user).exists():
+        raise PermissionDenied("You are not a participant in this conversation.")
+
+    if custom_image:
+        from ..utils.media import validate_media_file, compress_and_optimize_image
+        validate_media_file(custom_image, media_types=('image',), max_size_mb=20)
+        custom_image = compress_and_optimize_image(custom_image, max_dimension=1920, quality=85)
+        conversation.custom_theme_image = custom_image
+        conversation.theme_key = 'custom'
+    else:
+        conversation.theme_key = theme_key
+        if theme_key != 'custom' and conversation.custom_theme_image:
+            try:
+                conversation.custom_theme_image.delete(save=False)
+            except Exception:
+                pass
+            conversation.custom_theme_image = None
+
+    conversation.save(update_fields=['theme_key', 'custom_theme_image', 'updated_at'])
+    return conversation

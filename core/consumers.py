@@ -180,6 +180,19 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 }
             )
 
+        elif action == "change_theme":
+            theme_key = content.get("theme_key", "default")
+            conv_data = await self.change_theme_in_db(theme_key)
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "chat_theme_change",
+                    "theme_key": conv_data["theme_key"],
+                    "custom_theme_image_url": conv_data["custom_theme_image_url"],
+                    "changed_by": self.user.username
+                }
+            )
+
     # -------------------------------------------------------------------------
     # Handlers for Group Events (Pushed to WebSocket clients)
     # -------------------------------------------------------------------------
@@ -219,6 +232,14 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({
             "type": "message_reaction",
             "message": msg_copy
+        })
+
+    async def chat_theme_change(self, event):
+        await self.send_json({
+            "type": "theme_changed",
+            "theme_key": event["theme_key"],
+            "custom_theme_image_url": event.get("custom_theme_image_url"),
+            "changed_by": event.get("changed_by")
         })
 
     async def user_typing(self, event):
@@ -280,3 +301,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             return mark_conversation_read(conv, self.user)
         except Conversation.DoesNotExist:
             return 0
+
+    @database_sync_to_async
+    def change_theme_in_db(self, theme_key):
+        from .services.messaging import update_conversation_theme
+        conv = update_conversation_theme(self.conversation_id, self.user, theme_key=theme_key)
+        return {
+            "theme_key": conv.theme_key,
+            "custom_theme_image_url": conv.get_custom_theme_image_url
+        }

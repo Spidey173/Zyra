@@ -43,5 +43,6 @@ urlpatterns = [
     path('direct/api/unsend/<int:message_id>/', views.unsend_message_api, name='unsend_message_api'),
     path('direct/api/edit/<int:message_id>/', views.edit_message_api, name='edit_message_api'),
     path('direct/api/react/<int:message_id>/', views.react_message_api, name='react_message_api'),
+    path('direct/api/theme/<int:conversation_id>/', views.set_conversation_theme_api, name='set_conversation_theme_api'),
     path('direct/api/hide/<int:conversation_id>/', views.hide_conversation_api, name='hide_conversation_api'),
 ]

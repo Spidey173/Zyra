@@ -103,7 +103,7 @@
         <!-- =================================================================
              2. RIGHT CHAT WINDOW
              ================================================================= -->
-        <main class="direct-chat-window {% if not is_direct_chat %}d-none d-md-flex{% endif %}" id="directChatWindow">
+        <main class="direct-chat-window theme-{{ active_conversation.theme_key|default:'default' }} {% if not is_direct_chat %}d-none d-md-flex{% endif %}" id="directChatWindow" {% if active_conversation.theme_key == 'custom' and active_conversation.get_custom_theme_image_url %}style="--custom-bg: url('{{ active_conversation.get_custom_theme_image_url }}');"{% endif %}>
             {% if active_conversation and active_partner %}
                 
                 <!-- Chat Header -->
@@ -144,6 +144,9 @@
 
                     <!-- Header Action Tools -->
                     <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-icon-round" id="headerThemeBtn" data-bs-toggle="modal" data-bs-target="#chatThemeModal" title="Change Theme">
+                            <i class="bi bi-palette text-white"></i>
+                        </button>
                         <button type="button" class="btn btn-icon-round" id="toggleDetailsBtn" title="Conversation Details">
                             <i class="bi bi-info-circle text-white"></i>
                         </button>
@@ -154,7 +157,7 @@
                 <div class="chat-body-container">
                     
                     <!-- Message History Stream -->
-                    <div class="messages-container" id="messagesContainer">
+                    <div class="messages-container" id="messagesContainer" {% if active_conversation.theme_key == 'custom' and active_conversation.get_custom_theme_image_url %}style="background-image: url('{{ active_conversation.get_custom_theme_image_url }}');"{% endif %}>
                         <!-- Date Separator -->
                         <div class="chat-date-divider">
                             <span>Today</span>
@@ -183,6 +186,15 @@
                             <a href="{% url 'user_profile' username=active_partner.username %}" class="text-primary small text-decoration-none">View Profile</a>
                         </div>
                         <div class="p-3">
+                            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-dark mb-2">
+                                <div>
+                                    <span class="text-white small d-block fw-semibold">Chat Theme</span>
+                                    <span class="text-white-50 small" id="currentThemeNameDisplay">Preset & Wallpaper</span>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1" data-bs-toggle="modal" data-bs-target="#chatThemeModal">
+                                    <i class="bi bi-palette me-1"></i> Change
+                                </button>
+                            </div>
                             <div class="d-flex justify-content-between align-items-center py-2">
                                 <span class="text-white small">Mute messages</span>
                                 <div class="form-check form-switch m-0">
@@ -318,9 +330,9 @@
                                 <i class="bi bi-mic fs-5 text-white"></i>
                             </button>
 
-                            <!-- Double Heart Quick Reaction Button (When empty) -->
-                            <button type="button" class="chat-tool-btn" id="quickHeartBtn" onclick="sendQuickHeart()" title="Send heart">
-                                <i class="bi bi-heart fs-5"></i>
+                            <!-- Chat Theme & Wallpaper Picker Button -->
+                            <button type="button" class="chat-tool-btn" id="themePickerBtn" data-bs-toggle="modal" data-bs-target="#chatThemeModal" title="Change chat theme & wallpaper">
+                                <i class="bi bi-palette fs-5"></i>
                             </button>
 
                             <!-- Send / Save Button -->
@@ -382,6 +394,58 @@
         <div class="modal-content bg-transparent border-0 text-center position-relative">
             <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
             <img id="lightboxImg" src="" alt="Full view" class="img-fluid rounded-4 shadow-lg mx-auto" style="max-height: 85vh; object-fit: contain;">
+        </div>
+    </div>
+</div>
+
+<!-- =====================================================================
+     CHAT THEME & CUSTOM WALLPAPER MODAL
+     ===================================================================== -->
+<div class="modal fade" id="chatThemeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 660px;">
+        <div class="modal-content text-white overflow-hidden" style="background: #18181b; border: 1px solid #2e2e38; border-radius: 20px;">
+            <div class="modal-header border-bottom border-dark px-4 py-3 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-palette-fill text-primary fs-5"></i>
+                    <h5 class="modal-title fw-bold mb-0" style="font-size: 1.05rem;">Chat Theme & Wallpaper</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" style="max-height: 75vh; overflow-y: auto;">
+                
+                <!-- Section 1: Custom Photo Wallpaper Upload -->
+                <div class="mb-4 p-3 rounded-4" style="background: #121214; border: 1px dashed #3a3a44;">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-image-fill text-info"></i>
+                            <span class="fw-bold text-white small">Custom Photo Wallpaper</span>
+                        </div>
+                        <span class="badge bg-dark text-white-50 border border-secondary" style="font-size: 0.68rem;">Synchronized for both</span>
+                    </div>
+                    <p class="text-white-50 small mb-3" style="font-size: 0.8rem;">Upload your own photo as this chat's shared background wallpaper.</p>
+                    
+                    <form id="customWallpaperForm" class="d-flex flex-wrap align-items-center gap-2">
+                        <input type="file" id="customWallpaperInput" accept="image/*" class="d-none">
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1 fw-semibold" onclick="document.getElementById('customWallpaperInput').click()">
+                            <i class="bi bi-cloud-upload me-1"></i> Choose Photo
+                        </button>
+                        <span id="customWallpaperFileName" class="text-white-50 small text-truncate" style="max-width: 200px;"></span>
+                        <button type="submit" id="applyWallpaperBtn" class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-semibold ms-auto d-none">
+                            <i class="bi bi-check-lg me-1"></i> Apply Wallpaper
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Section 2: 15 Preset Template Themes -->
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <span class="text-white-50 text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Template Themes (15 Presets)</span>
+                </div>
+
+                <div class="row g-2" id="themePresetsGrid">
+                    <!-- Injected dynamically via JS -->
+                </div>
+
+            </div>
         </div>
     </div>
 </div>
@@ -924,6 +988,113 @@ body:has(.direct-wrapper) .main-content-wrapper {
     40% { transform: scale(1.1); opacity: 1; }
 }
 
+/* =========================================================================
+   15 INSTAGRAM TEMPLATE THEMES & CUSTOM PHOTO WALLPAPERS
+   ========================================================================= */
+.theme-default .messages-container { background: #000000; }
+.theme-default .message-bubble-wrapper.sent .message-bubble { background: #3797f0; color: #fff; }
+
+.theme-cyberpunk .messages-container { background: radial-gradient(ellipse at top, #1a0826 0%, #08060f 100%); }
+.theme-cyberpunk .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #f72585 0%, #7209b7 100%); box-shadow: 0 3px 12px rgba(247, 37, 133, 0.35); }
+
+.theme-sunset .messages-container { background: radial-gradient(ellipse at top, #2b1118 0%, #0e0508 100%); }
+.theme-sunset .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%); }
+
+.theme-ocean .messages-container { background: radial-gradient(ellipse at top, #061c2e 0%, #030a12 100%); }
+.theme-ocean .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); }
+
+.theme-aurora .messages-container { background: radial-gradient(ellipse at top, #08241b 0%, #030e0a 100%); }
+.theme-aurora .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #000; font-weight: 500; }
+
+.theme-galaxy .messages-container { background: radial-gradient(ellipse at top, #1c0e35 0%, #080312 100%); }
+.theme-galaxy .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #654ea3 0%, #eaafc8 100%); }
+
+.theme-gold .messages-container { background: radial-gradient(ellipse at top, #2b220d 0%, #0f0b02 100%); }
+.theme-gold .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
+
+.theme-cherry .messages-container { background: radial-gradient(ellipse at top, #290d19 0%, #0d0308 100%); }
+.theme-cherry .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%); }
+
+.theme-lofi .messages-container { background: radial-gradient(ellipse at top, #141c30 0%, #080b14 100%); }
+.theme-lofi .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%); }
+
+.theme-matrix .messages-container { background: radial-gradient(ellipse at top, #072111 0%, #020a05 100%); }
+.theme-matrix .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%); color: #000; font-weight: 500; }
+
+.theme-crimson .messages-container { background: radial-gradient(ellipse at top, #2b0808 0%, #0f0202 100%); }
+.theme-crimson .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #f85032 0%, #e73827 100%); }
+
+.theme-candy .messages-container { background: radial-gradient(ellipse at top, #24142e 0%, #0a050d 100%); }
+.theme-candy .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); color: #1a0826; font-weight: 500; }
+
+.theme-tokyo .messages-container { background: radial-gradient(ellipse at top, #1f0b38 0%, #06020c 100%); }
+.theme-tokyo .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #b224ef 0%, #7579ff 100%); }
+
+.theme-forest .messages-container { background: radial-gradient(ellipse at top, #0f241d 0%, #040d0a 100%); }
+.theme-forest .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #134e5e 0%, #71b280 100%); }
+
+.theme-midnight .messages-container { background: radial-gradient(ellipse at top, #0d1b38 0%, #030712 100%); }
+.theme-midnight .message-bubble-wrapper.sent .message-bubble { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); }
+
+/* Custom Photo Wallpaper Theme */
+.theme-custom .messages-container {
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    position: relative;
+}
+.theme-custom .messages-container::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 1;
+    pointer-events: none;
+}
+.theme-custom .messages-container > * {
+    position: relative;
+    z-index: 2;
+}
+.theme-custom .message-bubble-wrapper.sent .message-bubble {
+    background: rgba(55, 151, 240, 0.88);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.theme-custom .message-bubble-wrapper.received .message-bubble {
+    background: rgba(38, 38, 38, 0.88);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Theme Selection Cards in Modal */
+.theme-preset-card {
+    background: #1e1e24;
+    border: 2px solid #2e2e38;
+    border-radius: 14px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.theme-preset-card:hover {
+    transform: translateY(-2px);
+    border-color: #0095f6;
+    box-shadow: 0 4px 16px rgba(0, 149, 246, 0.25);
+}
+.theme-preset-card.active {
+    border-color: #0095f6;
+    background: rgba(0, 149, 246, 0.12);
+}
+.theme-preview-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
+}
+
 /* Input Area */
 .chat-input-wrapper {
     padding: 14px 20px;
@@ -1105,7 +1276,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const messagesContainer = document.getElementById('messagesContainer');
     const messageInput = document.getElementById('messageTextInput');
     const sendBtn = document.getElementById('sendBtn');
-    const quickHeartBtn = document.getElementById('quickHeartBtn');
+    const themePickerBtn = document.getElementById('themePickerBtn');
     const attachBtn = document.getElementById('attachImageBtn');
     const imageInput = document.getElementById('imageFileInput');
     const chatForm = document.getElementById('chatMessageForm');
@@ -1334,6 +1505,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     meta.innerHTML += ' • Seen';
                 }
             });
+        } else if (data.type === 'theme_changed') {
+            applyChatThemeDOM(data.theme_key, data.custom_theme_image_url);
         }
     }
 
@@ -1365,7 +1538,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initWebSocket();
     }
 
-    // Input state listener (Toggle Send vs Heart & Typing broadcast)
+    // Input state listener (Toggle Send vs Theme Picker & Typing broadcast)
     function updateSendBtnState() {
         if (!messageInput) return;
         const hasText = messageInput.value.trim().length > 0;
@@ -1376,7 +1549,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sendBtn.textContent = 'Save';
                 sendBtn.classList.remove('d-none');
             }
-            if (quickHeartBtn) quickHeartBtn.classList.add('d-none');
+            if (themePickerBtn) themePickerBtn.classList.add('d-none');
             return;
         }
 
@@ -1384,10 +1557,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (hasText || hasImage) {
             if (sendBtn) sendBtn.classList.remove('d-none');
-            if (quickHeartBtn) quickHeartBtn.classList.add('d-none');
+            if (themePickerBtn) themePickerBtn.classList.add('d-none');
         } else {
             if (sendBtn) sendBtn.classList.add('d-none');
-            if (quickHeartBtn) quickHeartBtn.classList.remove('d-none');
+            if (themePickerBtn) themePickerBtn.classList.remove('d-none');
         }
     }
 
@@ -2377,6 +2550,166 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // =========================================================================
+    // THEMES & CUSTOM WALLPAPER CLIENT ENGINE
+    // =========================================================================
+    const CHAT_THEMES = [
+        { key: 'default', name: 'Classic Dark', previewGradient: 'linear-gradient(135deg, #000000, #3797f0)', desc: 'OLED Pitch Black & Instagram Blue' },
+        { key: 'cyberpunk', name: 'Cyberpunk Neon', previewGradient: 'linear-gradient(135deg, #f72585, #7209b7)', desc: 'Vibrant Magenta & Violet Electric' },
+        { key: 'sunset', name: 'Sunset Romance', previewGradient: 'linear-gradient(135deg, #ff0844, #ffb199)', desc: 'Warm Peach & Sunset Coral' },
+        { key: 'ocean', name: 'Ocean Breeze', previewGradient: 'linear-gradient(135deg, #00c6ff, #0072ff)', desc: 'Deep Sea Blue & Aquamarine' },
+        { key: 'aurora', name: 'Emerald Aurora', previewGradient: 'linear-gradient(135deg, #11998e, #38ef7d)', desc: 'Northern Lights Emerald Glow' },
+        { key: 'galaxy', name: 'Cosmic Galaxy', previewGradient: 'linear-gradient(135deg, #654ea3, #eaafc8)', desc: 'Nebula Violet & Stardust Lilac' },
+        { key: 'gold', name: 'Golden Royalty', previewGradient: 'linear-gradient(135deg, #f12711, #f5af19)', desc: 'Champagne Gold & Amber Flame' },
+        { key: 'cherry', name: 'Cherry Blossom', previewGradient: 'linear-gradient(135deg, #ff758c, #ff7eb3)', desc: 'Sakura Petal & Soft Rose' },
+        { key: 'lofi', name: 'Lofi Twilight', previewGradient: 'linear-gradient(135deg, #4b6cb7, #182848)', desc: 'Retro Slate & Midnight Indigo' },
+        { key: 'matrix', name: 'Matrix Terminal', previewGradient: 'linear-gradient(135deg, #00b09b, #96c93d)', desc: 'Cyber Phosphor & Lime Green' },
+        { key: 'crimson', name: 'Crimson Flame', previewGradient: 'linear-gradient(135deg, #f85032, #e73827)', desc: 'Fiery Ruby & Scarlet Glow' },
+        { key: 'candy', name: 'Cotton Candy', previewGradient: 'linear-gradient(135deg, #ee9ca7, #ffdde1)', desc: 'Bubblegum Pink & Pastel Sky' },
+        { key: 'tokyo', name: 'Tokyo Night', previewGradient: 'linear-gradient(135deg, #b224ef, #7579ff)', desc: 'Shinjuku Ultraviolet & Purple' },
+        { key: 'forest', name: 'Misty Forest', previewGradient: 'linear-gradient(135deg, #134e5e, #71b280)', desc: 'Evergreen Pine & Sage Jade' },
+        { key: 'midnight', name: 'Midnight Sapphire', previewGradient: 'linear-gradient(135deg, #1e3c72, #2a5298)', desc: 'Royal Navy & Sapphire Depths' }
+    ];
+
+    let currentThemeKey = "{{ active_conversation.theme_key|default:'default' }}";
+    let currentCustomThemeImage = "{% if active_conversation.theme_key == 'custom' and active_conversation.get_custom_theme_image_url %}{{ active_conversation.get_custom_theme_image_url }}{% endif %}";
+
+    const chatWindow = document.getElementById('directChatWindow');
+    const themePresetsGrid = document.getElementById('themePresetsGrid');
+    const customWallpaperInput = document.getElementById('customWallpaperInput');
+    const customWallpaperFileName = document.getElementById('customWallpaperFileName');
+    const applyWallpaperBtn = document.getElementById('applyWallpaperBtn');
+    const customWallpaperForm = document.getElementById('customWallpaperForm');
+    const currentThemeNameDisplay = document.getElementById('currentThemeNameDisplay');
+
+    function renderThemePresetCards() {
+        if (!themePresetsGrid) return;
+        themePresetsGrid.innerHTML = CHAT_THEMES.map(theme => `
+            <div class="col-12 col-sm-6">
+                <div class="theme-preset-card ${currentThemeKey === theme.key ? 'active' : ''}" onclick="selectChatTheme('${theme.key}')" data-theme-key="${theme.key}">
+                    <div class="theme-preview-circle shadow-sm" style="background: ${theme.previewGradient};"></div>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <strong class="d-block text-white small text-truncate">${theme.name}</strong>
+                        <span class="text-white-50 small d-block text-truncate" style="font-size: 0.72rem;">${theme.desc}</span>
+                    </div>
+                    ${currentThemeKey === theme.key ? '<i class="bi bi-check-circle-fill text-primary ms-auto fs-5"></i>' : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function applyChatThemeDOM(themeKey, customImageUrl = null) {
+        if (!chatWindow || !messagesContainer) return;
+
+        // Remove all previous theme classes
+        const themeClasses = Array.from(chatWindow.classList).filter(c => c.startsWith('theme-'));
+        themeClasses.forEach(c => chatWindow.classList.remove(c));
+
+        chatWindow.classList.add(`theme-${themeKey}`);
+        currentThemeKey = themeKey;
+
+        if (themeKey === 'custom' && customImageUrl) {
+            messagesContainer.style.backgroundImage = `url('${customImageUrl}')`;
+            if (currentThemeNameDisplay) currentThemeNameDisplay.textContent = 'Custom Wallpaper';
+        } else {
+            messagesContainer.style.backgroundImage = '';
+            const t = CHAT_THEMES.find(th => th.key === themeKey);
+            if (currentThemeNameDisplay) currentThemeNameDisplay.textContent = t ? t.name : 'Preset';
+        }
+
+        renderThemePresetCards();
+    }
+
+    window.selectChatTheme = async function(themeKey) {
+        if (!activeConvId) return;
+
+        // Apply immediately in local DOM for zero latency
+        applyChatThemeDOM(themeKey, null);
+
+        // Close modal
+        const modalEl = document.getElementById('chatThemeModal');
+        if (modalEl && bootstrap.Modal.getInstance(modalEl)) {
+            bootstrap.Modal.getInstance(modalEl).hide();
+        }
+
+        // Try WebSocket first
+        if (isSocketOpen && chatSocket) {
+            chatSocket.send(JSON.stringify({
+                action: 'change_theme',
+                theme_key: themeKey
+            }));
+        }
+
+        // Also persist via REST API for fallback/assurance
+        try {
+            const formData = new FormData();
+            formData.append('theme_key', themeKey);
+            await fetch(`/direct/api/theme/${activeConvId}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+                body: formData
+            });
+        } catch (e) {
+            console.error('Failed to persist theme via API:', e);
+        }
+    };
+
+    if (customWallpaperInput) {
+        customWallpaperInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                if (customWallpaperFileName) customWallpaperFileName.textContent = file.name;
+                if (applyWallpaperBtn) applyWallpaperBtn.classList.remove('d-none');
+            }
+        });
+    }
+
+    if (customWallpaperForm) {
+        customWallpaperForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!activeConvId || !customWallpaperInput.files || !customWallpaperInput.files[0]) return;
+
+            const file = customWallpaperInput.files[0];
+            const formData = new FormData();
+            formData.append('theme_key', 'custom');
+            formData.append('custom_theme_image', file);
+
+            if (applyWallpaperBtn) {
+                applyWallpaperBtn.disabled = true;
+                applyWallpaperBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Applying...';
+            }
+
+            try {
+                const res = await fetch(`/direct/api/theme/${activeConvId}/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCsrfToken() },
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    applyChatThemeDOM('custom', data.custom_theme_image_url);
+                    const modalEl = document.getElementById('chatThemeModal');
+                    if (modalEl && bootstrap.Modal.getInstance(modalEl)) {
+                        bootstrap.Modal.getInstance(modalEl).hide();
+                    }
+                } else {
+                    alert(data.error || 'Failed to upload custom wallpaper.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network error while uploading wallpaper.');
+            } finally {
+                if (applyWallpaperBtn) {
+                    applyWallpaperBtn.disabled = false;
+                    applyWallpaperBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Apply Wallpaper';
+                }
+            }
+        });
+    }
+
+    // Initialize preset cards on page load
+    renderThemePresetCards();
 });
 </script>
 {% endblock %}

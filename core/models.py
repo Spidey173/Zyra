@@ -256,6 +256,8 @@ class Conversation(models.Model):
 
     conversation_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default=DIRECT)
     title = models.CharField(max_length=255, blank=True)
+    theme_key = models.CharField(max_length=50, default='default')
+    custom_theme_image = models.ImageField(upload_to='conversation_themes/%Y/%m/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
 
@@ -267,6 +269,10 @@ class Conversation(models.Model):
 
     def __str__(self):
         return f"Conversation #{self.id} ({self.conversation_type})"
+
+    @property
+    def get_custom_theme_image_url(self):
+        return get_media_url(self.custom_theme_image)
 
     def get_partner(self, current_user=None):
         """For direct 1-on-1 conversations, returns the other participant User."""

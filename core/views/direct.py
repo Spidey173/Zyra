@@ -17,6 +17,7 @@ from ..services.messaging import (
     edit_message,
     toggle_reaction,
     get_user_conversations,
+    update_conversation_theme,
 )
 from ..serializers import (
     serialize_user,
@@ -282,3 +283,52 @@ def react_message_api(request, message_id):
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': 'Failed to react to message.'}, status=500)
+
+
+@login_required
+@require_POST
+def set_conversation_theme_api(request, conversation_id):
+    """
+    Updates the shared theme of a conversation (preset template or custom uploaded wallpaper).
+    Broadcasts change in real-time over Channels WebSocket to both participants.
+    """
+    theme_key = request.POST.get('theme_key', 'default').strip()
+    custom_image = request.FILES.get('custom_theme_image')
+
+    try:
+        conv = update_conversation_theme(
+            conversation_id=conversation_id,
+            user=request.user,
+            theme_key=theme_key,
+            custom_image=custom_image
+        )
+
+        # Broadcast theme change over WebSockets
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f"chat_{conversation_id}",
+                    {
+                        'type': 'chat_theme_change',
+                        'theme_key': conv.theme_key,
+                        'custom_theme_image_url': conv.get_custom_theme_image_url,
+                        'changed_by': request.user.username,
+                    }
+                )
+        except Exception:
+            pass
+
+        return JsonResponse({
+            'success': True,
+            'theme_key': conv.theme_key,
+            'custom_theme_image_url': conv.get_custom_theme_image_url,
+        })
+    except PermissionDenied as e:
+        return HttpResponseForbidden(str(e))
+    except ValidationError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': 'Failed to update theme.'}, status=500)

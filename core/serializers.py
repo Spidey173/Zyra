@@ -139,6 +139,8 @@ def serialize_conversation(conversation, current_user):
         'type': conversation.conversation_type,
         'title': conversation.title if conversation.title else (partner.username if partner else 'Direct'),
         'partner': serialize_user(partner) if partner else None,
+        'theme_key': conversation.theme_key,
+        'custom_theme_image_url': conversation.get_custom_theme_image_url,
         'last_message': last_msg_data,
         'unread_count': unread_count,
         'updated_at_iso': conversation.updated_at.isoformat(),
