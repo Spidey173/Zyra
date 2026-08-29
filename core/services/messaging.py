@@ -82,11 +82,15 @@ def send_message(sender, conversation_id, content='', image=None, voice_note=Non
         except Message.DoesNotExist:
             pass
 
+    # Encrypt content before storing in database
+    from ..utils.encryption import encrypt_message_text
+    encrypted_content = encrypt_message_text(content) if content else ''
+
     with transaction.atomic():
         message = Message.objects.create(
             conversation=conversation,
             sender=sender,
-            content=content,
+            content=encrypted_content,
             image=image,
             voice_note=voice_note,
             post=shared_post,
@@ -221,7 +225,8 @@ def edit_message(message_id, user, new_content):
     if not new_content and not message.image and not message.post_id:
         raise ValidationError("Message content cannot be empty.")
 
-    message.content = new_content
+    from ..utils.encryption import encrypt_message_text
+    message.content = encrypt_message_text(new_content)
     message.is_edited = True
     message.edited_at = timezone.now()
     message.save(update_fields=['content', 'is_edited', 'edited_at'])

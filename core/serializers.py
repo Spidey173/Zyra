@@ -43,10 +43,11 @@ def serialize_message(message, current_user=None):
     # Reply preview
     reply_preview = None
     if message.parent_message and not message.parent_message.is_deleted:
+        parent_text = message.parent_message.decrypted_content
         reply_preview = {
             'id': message.parent_message.id,
             'sender_username': message.parent_message.sender.username,
-            'content': message.parent_message.content[:80] if message.parent_message.content else ('[Image]' if message.parent_message.image else '[Post]'),
+            'content': parent_text[:80] if parent_text else ('[Image]' if message.parent_message.image else ('[Voice Note]' if message.parent_message.voice_note else '[Post]')),
         }
 
     formatted_time = message.created_at.strftime('%I:%M %p').lstrip('0')
@@ -73,7 +74,7 @@ def serialize_message(message, current_user=None):
         'sender_id': message.sender_id,
         'sender_username': message.sender.username,
         'sender_avatar': sender_avatar,
-        'content': message.content,
+        'content': message.decrypted_content,
         'image_url': message.get_image_url,
         'voice_note_url': message.get_voice_note_url,
         'shared_post': serialize_post_preview(message.post),
@@ -101,11 +102,12 @@ def serialize_conversation(conversation, current_user):
 
     last_msg_data = None
     if last_message:
+        last_msg_text = last_message.decrypted_content
         last_msg_data = {
             'id': last_message.id,
             'sender_username': last_message.sender.username,
             'is_mine': last_message.sender == current_user,
-            'content': last_message.content if last_message.content else ('📷 Photo' if last_message.image else ('🎙️ Voice message' if last_message.voice_note else '📎 Post')),
+            'content': last_msg_text if last_msg_text else ('📷 Photo' if last_message.image else ('🎙️ Voice message' if last_message.voice_note else '📎 Post')),
             'created_at_time': last_message.created_at.strftime('%I:%M %p').lstrip('0'),
             'created_at_iso': last_message.created_at.isoformat(),
         }

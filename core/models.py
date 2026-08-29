@@ -361,6 +361,11 @@ class Message(models.Model):
     def get_voice_note_url(self):
         return get_media_url(self.voice_note)
 
+    @property
+    def decrypted_content(self):
+        from .utils.encryption import decrypt_message_text
+        return decrypt_message_text(self.content)
+
     def can_edit(self, user=None):
         """Allows editing only by original sender within 5 minutes of creation."""
         if not user or self.sender_id != getattr(user, 'id', None) or self.is_deleted:

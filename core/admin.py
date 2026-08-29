@@ -42,18 +42,6 @@ class StoryAdmin(admin.ModelAdmin):
     list_display = ('user', 'created_at')
     list_filter = ('created_at',)
 
-class ConversationParticipantInline(admin.TabularInline):
-    model = ConversationParticipant
-    extra = 1
-
-@admin.register(Conversation)
-class ConversationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'conversation_type', 'title', 'updated_at', 'created_at')
-    list_filter = ('conversation_type', 'created_at')
-    inlines = [ConversationParticipantInline]
-
-@admin.register(Message)
-class MessageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'conversation', 'sender', 'content', 'created_at', 'read_at', 'is_deleted')
-    list_filter = ('created_at', 'is_deleted')
-    search_fields = ('content', 'sender__username')
+# NOTE: Conversation, ConversationParticipant, and Message models are intentionally
+# NOT registered in Django Admin to strictly protect user privacy and prevent
+# administrators from viewing private direct messages, voice notes, and media.
