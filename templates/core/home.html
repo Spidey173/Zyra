@@ -252,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(data => {
                     if (data.success) {
                         input.value = '';
-                        alert("Comment posted!");
+                        window.showToast && window.showToast('Comment posted!', 'success');
                     }
                 })
                 .catch(error => console.error('Error:', error));
@@ -268,33 +268,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
-                if (!confirm("Are you sure you want to delete this post?")) return;
-                
                 const url = this.getAttribute('action');
                 const postCard = this.closest('.post-card');
-                
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': getCookie('csrftoken'),
+
+                window.showConfirmPopup({
+                    title: 'Delete Post?',
+                    message: 'Are you sure you want to delete this post? This action cannot be undone.',
+                    confirmText: 'Delete Post',
+                    confirmType: 'danger',
+                    icon: 'bi-trash3-fill',
+                    onConfirm: () => {
+                        fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRFToken': getCookie('csrftoken'),
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                postCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                                postCard.style.opacity = '0';
+                                postCard.style.transform = 'scale(0.95)';
+                                setTimeout(() => {
+                                    postCard.remove();
+                                }, 300);
+                                window.showToast && window.showToast('Post deleted', 'success');
+                            } else {
+                                window.showToast && window.showToast(data.error || 'Failed to delete post', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            window.showToast && window.showToast('Network error deleting post', 'error');
+                        });
                     }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Smoothly fade out and remove
-                        postCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                        postCard.style.opacity = '0';
-                        postCard.style.transform = 'scale(0.95)';
-                        setTimeout(() => {
-                            postCard.remove();
-                        }, 300);
-                    } else {
-                        alert(data.error || "Failed to delete post");
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+                });
             });
         });
     }
@@ -605,49 +615,55 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!story) return;
 
             isStoryPaused = true;
-            if (!confirm("Are you sure you want to delete this story?")) {
-                isStoryPaused = false;
-                return;
-            }
-
-            fetch(`/story/delete/${story.id}/`, {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': getCookie('csrftoken'),
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    userData.stories.splice(currentStoryIndex, 1);
-                    if (userData.stories.length === 0) {
-                        window.activeStoriesData.splice(currentUserIndex, 1);
-                        const bubble = document.querySelector(`.story-bubble[onclick*="${userData.username}"]`);
-                        if (bubble) bubble.remove();
-                        if (window.activeStoriesData.length === 0) {
-                            closeStoryViewer();
-                        } else {
-                            if (currentUserIndex >= window.activeStoriesData.length) {
-                                currentUserIndex = window.activeStoriesData.length - 1;
+            window.showConfirmPopup({
+                title: 'Delete Story?',
+                message: 'Are you sure you want to delete this story? It will disappear for all viewers.',
+                confirmText: 'Delete Story',
+                confirmType: 'danger',
+                icon: 'bi-trash3-fill',
+                onConfirm: () => {
+                    fetch(`/story/delete/${story.id}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': getCookie('csrftoken'),
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            userData.stories.splice(currentStoryIndex, 1);
+                            window.showToast && window.showToast('Story deleted', 'success');
+                            if (userData.stories.length === 0) {
+                                window.activeStoriesData.splice(currentUserIndex, 1);
+                                const bubble = document.querySelector(`.story-bubble[onclick*="${userData.username}"]`);
+                                if (bubble) bubble.remove();
+                                if (window.activeStoriesData.length === 0) {
+                                    closeStoryViewer();
+                                } else {
+                                    if (currentUserIndex >= window.activeStoriesData.length) {
+                                        currentUserIndex = window.activeStoriesData.length - 1;
+                                    }
+                                    currentStoryIndex = 0;
+                                    showStory();
+                                }
+                            } else {
+                                if (currentStoryIndex >= userData.stories.length) {
+                                    currentStoryIndex = userData.stories.length - 1;
+                                }
+                                showStory();
                             }
-                            currentStoryIndex = 0;
-                            showStory();
+                        } else {
+                            window.showToast && window.showToast(data.error || 'Failed to delete story', 'error');
+                            isStoryPaused = false;
                         }
-                    } else {
-                        if (currentStoryIndex >= userData.stories.length) {
-                            currentStoryIndex = userData.stories.length - 1;
-                        }
-                        showStory();
-                    }
-                } else {
-                    alert(data.error || "Failed to delete story");
-                    isStoryPaused = false;
+                    })
+                    .catch(err => {
+                        console.error('Delete story error:', err);
+                        window.showToast && window.showToast('Network error deleting story', 'error');
+                        isStoryPaused = false;
+                    });
                 }
-            })
-            .catch(err => {
-                console.error('Delete story error:', err);
-                isStoryPaused = false;
             });
         });
     }

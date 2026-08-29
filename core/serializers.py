@@ -20,16 +20,20 @@ def serialize_user(user):
     }
 
 def serialize_post_preview(post):
-    """Serializes a lightweight preview of a shared post for DMs."""
+    """Serializes a lightweight preview of a shared post or reel for DMs."""
     if not post:
         return None
+    profile_pic = None
+    if hasattr(post.user, 'profile') and post.user.profile:
+        profile_pic = get_media_url(post.user.profile.profile_pic)
     return {
         'id': post.id,
         'username': post.user.username,
-        'user_avatar': get_media_url(post.user.profile.profile_pic) if hasattr(post.user, 'profile') else None,
+        'user_avatar': profile_pic,
         'caption': post.caption[:120] if post.caption else '',
         'image_url': post.get_image_url,
         'video_url': post.get_video_url,
+        'is_reel': bool(post.video),
     }
 
 def serialize_message(message, current_user=None):

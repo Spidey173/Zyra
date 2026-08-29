@@ -286,29 +286,49 @@
 
     <!-- Share Post to DM Modal -->
     <div class="modal fade" id="sharePostModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content glass-card border-0 p-3" style="background: var(--bg-surface-1); box-shadow: var(--card-shadow);">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+            <div class="modal-content glass-card border-0 p-3" style="background: var(--bg-surface-1, #18181b); border-radius: 20px; box-shadow: var(--card-shadow, 0 10px 30px rgba(0,0,0,0.8)); border: 1px solid #2e2e38;">
                 <div class="modal-header border-0 pb-2">
-                    <h6 class="modal-title text-white fw-bold"><i class="bi bi-send text-purple me-2"></i>Share to Direct</h6>
+                    <h6 class="modal-title text-white fw-bold"><i class="bi bi-send text-primary me-2"></i>Share to Direct</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-0">
                     <input type="hidden" id="sharePostIdInput" value="">
                     <div class="mb-3">
-                        <input type="text" id="shareUserSearchInput" class="form-control form-control-custom" placeholder="Search creator name...">
+                        <input type="text" id="shareUserSearchInput" class="form-control form-control-custom" placeholder="Search people..." autocomplete="off">
                     </div>
-                    <div id="shareUserSearchResults" class="d-flex flex-column gap-2 mb-3" style="max-height: 200px; overflow-y: auto;">
-                        <p class="text-white-50 small text-center py-2">Type a username to send this post.</p>
+                    <div id="shareUserSearchResults" class="d-flex flex-column gap-2 mb-3" style="max-height: 240px; overflow-y: auto;">
+                        <p class="text-white-50 small text-center py-2">Loading contacts...</p>
                     </div>
                     <div class="mb-2">
-                        <input type="text" id="shareNoteInput" class="form-control form-control-custom" placeholder="Add a message note...">
+                        <input type="text" id="shareNoteInput" class="form-control form-control-custom" placeholder="Write a message (optional)...">
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Full-screen Story Viewer Overlay (100% Authentic Instagram Experience) -->
+    <!-- Universal Custom Confirmation Modal (Replaces browser confirm) -->
+    <div class="modal fade" id="zyraConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+            <div class="modal-content text-white text-center p-4 border-0" style="background: #18181b; border-radius: 22px; box-shadow: 0 12px 36px rgba(0,0,0,0.85); border: 1px solid #32323e;">
+                <div id="confirmIconContainer" class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 54px; height: 54px; background: rgba(220, 53, 69, 0.15); color: #ff4b5c; font-size: 1.45rem;">
+                    <i class="bi bi-trash3-fill" id="confirmModalIcon"></i>
+                </div>
+                <h5 class="fw-bold mb-2 text-white" id="confirmModalTitle" style="font-size: 1.15rem;">Are you sure?</h5>
+                <p class="text-white-50 small mb-4" id="confirmModalMessage" style="line-height: 1.5; font-size: 0.88rem;">This action cannot be undone.</p>
+                <div class="d-flex align-items-center gap-2 justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 small fw-semibold flex-fill" data-bs-dismiss="modal" id="cancelConfirmBtn">Cancel</button>
+                    <button type="button" class="btn btn-danger rounded-pill px-4 py-2 small fw-semibold flex-fill shadow" id="proceedConfirmBtn">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Toast Notification Container -->
+    <div id="zyraToastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1090;"></div>
+
+    <!-- Full-screen Story Viewer Overlay -->
     <div class="story-viewer-backdrop" id="storyViewer">
         <button class="story-nav-btn story-nav-prev" id="story-prev-btn"><i class="bi bi-chevron-left"></i></button>
         <button class="story-nav-btn story-nav-next" id="story-next-btn"><i class="bi bi-chevron-right"></i></button>
@@ -351,7 +371,7 @@
             <!-- Caption Overlay -->
             <div class="story-viewer-caption" id="story-viewer-caption" style="display: none;"></div>
             
-            <!-- Instagram Story Reply Footer -->
+            <!-- Story Reply Footer -->
             <div class="story-viewer-footer">
                 <input type="text" class="form-control story-reply-input" id="story-reply-input" placeholder="Reply to story...">
                 <button type="button" class="btn btn-link text-white p-0 border-0 fs-4" id="story-heart-reaction" style="box-shadow: none; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
@@ -385,6 +405,94 @@
         };
         const getCookie = window.getCookie;
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+        window.escapeHtml = escapeHtml;
+
+        // Universal Custom Confirmation Dialog (Replaces browser confirm)
+        window.showConfirmPopup = function({
+            title = 'Delete item?',
+            message = 'Are you sure you want to delete this? This action cannot be undone.',
+            confirmText = 'Delete',
+            confirmType = 'danger',
+            icon = 'bi-trash3-fill',
+            onConfirm = () => {}
+        }) {
+            const modalEl = document.getElementById('zyraConfirmModal');
+            if (!modalEl) {
+                if (window.confirm(message)) onConfirm();
+                return;
+            }
+            
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalMessage').textContent = message;
+            
+            const iconEl = document.getElementById('confirmModalIcon');
+            if (iconEl) iconEl.className = `bi ${icon}`;
+            
+            const proceedBtn = document.getElementById('proceedConfirmBtn');
+            if (proceedBtn) {
+                proceedBtn.textContent = confirmText;
+                proceedBtn.className = `btn btn-${confirmType} rounded-pill px-4 py-2 small fw-semibold flex-fill shadow`;
+            }
+            
+            const confirmModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            
+            const newProceedBtn = proceedBtn.cloneNode(true);
+            proceedBtn.parentNode.replaceChild(newProceedBtn, proceedBtn);
+            
+            newProceedBtn.addEventListener('click', function() {
+                confirmModal.hide();
+                if (typeof onConfirm === 'function') {
+                    onConfirm();
+                }
+            });
+            
+            confirmModal.show();
+        };
+
+        // Universal Toast Notification (Replaces browser alert)
+        window.showToast = function(message, type = 'info') {
+            const container = document.getElementById('zyraToastContainer');
+            if (!container) return;
+            
+            const icons = {
+                success: 'bi-check-circle-fill text-success',
+                error: 'bi-exclamation-triangle-fill text-danger',
+                warning: 'bi-exclamation-circle-fill text-warning',
+                info: 'bi-info-circle-fill text-info'
+            };
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast align-items-center text-white border-0 mb-2 shadow-lg';
+            toast.style.background = '#1e1e24';
+            toast.style.border = '1px solid #363644';
+            toast.style.borderRadius = '14px';
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            
+            toast.innerHTML = `
+                <div class="d-flex p-3 align-items-center">
+                    <i class="bi ${icons[type] || icons.info} fs-5 me-3"></i>
+                    <div class="toast-body p-0 small fw-medium text-white flex-grow-1">${escapeHtml(message)}</div>
+                    <button type="button" class="btn-close btn-close-white ms-3 p-1" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast, { delay: 3500 });
+            bsToast.show();
+            toast.addEventListener('hidden.bs.toast', () => toast.remove());
+        };
+
         // Post Creator Modal
         const createPostModal = document.getElementById('createPostModal');
         const openCreateModalBtn = document.getElementById('openCreateModalBtn');
@@ -416,45 +524,57 @@
         if (closeStoryModalBtn) closeStoryModalBtn.addEventListener('click', () => toggleStoryModal(false));
         if (cancelStoryModalBtn) cancelStoryModalBtn.addEventListener('click', () => toggleStoryModal(false));
 
-        // Share Post to DM Modal Logic
+        // Share Post / Reel to DM Modal Logic
         let shareModalInstance = null;
-        function openSharePostModal(postId) {
+        window.openSharePostModal = function(postId) {
             const modalEl = document.getElementById('sharePostModal');
+            if (!modalEl) return;
             document.getElementById('sharePostIdInput').value = postId;
             if (!shareModalInstance) {
                 shareModalInstance = new bootstrap.Modal(modalEl);
             }
             shareModalInstance.show();
             searchShareUsers('');
-        }
+        };
 
         const shareSearchInput = document.getElementById('shareUserSearchInput');
         if (shareSearchInput) {
+            let searchTimeout = null;
             shareSearchInput.addEventListener('input', function() {
-                searchShareUsers(this.value.trim());
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    searchShareUsers(this.value.trim());
+                }, 200);
             });
         }
 
         function searchShareUsers(query) {
             const resultsContainer = document.getElementById('shareUserSearchResults');
+            if (!resultsContainer) return;
+            resultsContainer.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>';
+
             fetch(`/direct/api/search-users/?q=${encodeURIComponent(query)}`)
                 .then(res => res.json())
-                .then(users => {
+                .then(data => {
+                    const users = (data && data.users) ? data.users : [];
                     resultsContainer.innerHTML = '';
                     if (users.length === 0) {
-                        resultsContainer.innerHTML = '<p class="text-white-50 small text-center py-2">No creators found.</p>';
+                        resultsContainer.innerHTML = '<p class="text-white-50 small text-center py-3 mb-0">No users found.</p>';
                         return;
                     }
                     users.forEach(u => {
                         const item = document.createElement('div');
                         item.className = 'd-flex align-items-center justify-content-between p-2 rounded-3';
-                        item.style.background = 'var(--bg-surface-2)';
+                        item.style.background = 'var(--bg-surface-2, #24242a)';
                         item.innerHTML = `
-                            <div class="d-flex align-items-center gap-2">
-                                ${u.profile_pic ? `<img src="${u.profile_pic}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">` : `<div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem; background: var(--story-gradient);">${u.username.charAt(0).toUpperCase()}</div>`}
-                                <span class="text-white small fw-bold">${u.username}</span>
+                            <div class="d-flex align-items-center gap-2 overflow-hidden">
+                                ${u.profile_pic ? `<img src="${u.profile_pic}" class="rounded-circle" style="width: 36px; height: 36px; object-fit: cover; flex-shrink: 0;">` : `<div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 0.85rem; background: var(--story-gradient); flex-shrink: 0;">${u.username.charAt(0).toUpperCase()}</div>`}
+                                <div class="overflow-hidden">
+                                    <span class="text-white small fw-bold d-block text-truncate">${escapeHtml(u.username)}</span>
+                                    ${u.first_name ? `<span class="text-white-50 small d-block text-truncate" style="font-size: 0.72rem;">${escapeHtml(u.first_name)} ${escapeHtml(u.last_name || '')}</span>` : ''}
+                                </div>
                             </div>
-                            <button type="button" class="btn btn-sm btn-grad rounded-pill px-3 py-1 send-share-btn" data-username="${u.username}">Send</button>
+                            <button type="button" class="btn btn-sm btn-grad rounded-pill px-3 py-1 send-share-btn flex-shrink-0" data-username="${u.username}">Send</button>
                         `;
                         resultsContainer.appendChild(item);
                     });
@@ -463,27 +583,48 @@
                         btn.addEventListener('click', function() {
                             const targetUsername = this.dataset.username;
                             const postId = document.getElementById('sharePostIdInput').value;
-                            const note = document.getElementById('shareNoteInput').value;
+                            const note = document.getElementById('shareNoteInput') ? document.getElementById('shareNoteInput').value : '';
                             this.disabled = true;
-                            this.textContent = 'Sending...';
+                            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Sending...';
 
-                            fetch(`/direct/t/${targetUsername}/share-post/`, {
+                            const formData = new FormData();
+                            formData.append('username', targetUsername);
+                            formData.append('post_id', postId);
+                            formData.append('note', note);
+
+                            fetch('/direct/api/share-post/', {
                                 method: 'POST',
                                 headers: {
-                                    'Content-Type': 'application/json',
                                     'X-CSRFToken': getCookie('csrftoken')
                                 },
-                                body: JSON.stringify({ post_id: postId, message: note })
+                                body: formData
                             })
                             .then(res => res.json())
                             .then(data => {
                                 if (data.success) {
+                                    this.className = 'btn btn-sm btn-success rounded-pill px-3 py-1';
                                     this.textContent = 'Sent ✓';
-                                    setTimeout(() => { if (shareModalInstance) shareModalInstance.hide(); }, 600);
+                                    window.showToast && window.showToast(`Shared to @${targetUsername}!`, 'success');
+                                    setTimeout(() => { 
+                                        if (shareModalInstance) shareModalInstance.hide(); 
+                                        if (document.getElementById('shareNoteInput')) document.getElementById('shareNoteInput').value = '';
+                                    }, 800);
+                                } else {
+                                    this.disabled = false;
+                                    this.textContent = 'Send';
+                                    window.showToast && window.showToast(data.error || 'Failed to send post', 'error');
                                 }
+                            })
+                            .catch(err => {
+                                this.disabled = false;
+                                this.textContent = 'Send';
+                                window.showToast && window.showToast('Network error sharing post', 'error');
                             });
                         });
                     });
+                })
+                .catch(err => {
+                    resultsContainer.innerHTML = '<p class="text-danger small text-center py-2">Failed to load users.</p>';
                 });
         }
     </script>

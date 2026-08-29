@@ -174,14 +174,28 @@ def mark_as_read_api(request, conversation_id):
 @login_required
 @require_GET
 def search_users_for_dm(request):
-    """Searches users by username or name to start a new direct conversation."""
+    """Searches users by username or name to start a new direct conversation or share content."""
     query = request.GET.get('q', '').strip()
-    if not query:
-        return JsonResponse({'users': []})
+    if query:
+        users = list(User.objects.filter(
+            Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query)
+        ).exclude(id=request.user.id).select_related('profile')[:15])
+    else:
+        # Default: Return existing conversation partners or followed users
+        participated_convs = ConversationParticipant.objects.filter(
+            user=request.user, hidden_at__isnull=True
+        ).values_list('conversation_id', flat=True)
+        
+        partner_ids = list(ConversationParticipant.objects.filter(
+            conversation_id__in=participated_convs
+        ).exclude(user=request.user).values_list('user_id', flat=True)[:10])
 
-    users = User.objects.filter(
-        Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query)
-    ).exclude(id=request.user.id).select_related('profile')[:10]
+        users = list(User.objects.filter(id__in=partner_ids).select_related('profile'))
+        
+        if len(users) < 8:
+            exclude_ids = set(partner_ids + [request.user.id])
+            extra_users = list(User.objects.exclude(id__in=exclude_ids).select_related('profile')[:8 - len(users)])
+            users.extend(extra_users)
 
     return JsonResponse({
         'users': [serialize_user(u) for u in users]
@@ -191,13 +205,23 @@ def search_users_for_dm(request):
 @login_required
 @require_POST
 def share_post_to_dm(request):
-    """Shares a post into direct message with a specific user."""
-    target_username = request.POST.get('username')
+    """Shares a post or reel into direct message with a specific user."""
+    target_username = request.POST.get('username') or request.POST.get('target_username')
     post_id = request.POST.get('post_id')
-    optional_note = request.POST.get('note', '')
+    optional_note = request.POST.get('note') or request.POST.get('message', '')
+
+    # Support JSON request payloads
+    if not target_username or not post_id:
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+            target_username = target_username or body.get('username') or body.get('target_username')
+            post_id = post_id or body.get('post_id')
+            optional_note = optional_note or body.get('note') or body.get('message', '')
+        except Exception:
+            pass
 
     if not target_username or not post_id:
-        return HttpResponseBadRequest("Username and post_id required.")
+        return JsonResponse({'success': False, 'error': 'Target username and post_id are required.'}, status=400)
 
     target_user = get_object_or_404(User, username=target_username)
     post = get_object_or_404(Post, id=post_id)
@@ -210,10 +234,28 @@ def share_post_to_dm(request):
             content=optional_note,
             post_id=post.id
         )
+        serialized_msg = serialize_message(msg, request.user)
+
+        # Broadcast real-time event to channel layer subscribers
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f"chat_{conv.id}",
+                    {
+                        "type": "chat_message",
+                        "message": serialized_msg,
+                    }
+                )
+        except Exception:
+            pass
+
         return JsonResponse({
             'success': True,
             'conversation_id': conv.id,
-            'message': serialize_message(msg, request.user)
+            'message': serialized_msg
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)

@@ -44,7 +44,8 @@ class DirectMessagingTests(TestCase):
             conversation_id=conv.id,
             content="Hello Bob!"
         )
-        self.assertEqual(msg.content, "Hello Bob!")
+        self.assertEqual(msg.decrypted_content, "Hello Bob!")
+        self.assertTrue(msg.content.startswith("enc::"))
         self.assertEqual(msg.sender, self.user_a)
         self.assertEqual(conv.messages.count(), 1)
 
@@ -81,23 +82,22 @@ class DirectMessagingTests(TestCase):
         with self.assertRaises(PermissionDenied):
             get_conversation_messages(conv, self.user_c)
 
-    def test_pagination_and_incremental_polling(self):
+    def test_pagination_cursor(self):
         conv, _ = get_or_create_direct_conversation(self.user_a, self.user_b)
-        m1 = send_message(sender=self.user_a, conversation_id=conv.id, content="First")
-        m2 = send_message(sender=self.user_b, conversation_id=conv.id, content="Second")
-        m3 = send_message(sender=self.user_a, conversation_id=conv.id, content="Third")
+        m1 = send_message(sender=self.user_a, conversation_id=conv.id, content="1")
+        m2 = send_message(sender=self.user_a, conversation_id=conv.id, content="2")
+        m3 = send_message(sender=self.user_a, conversation_id=conv.id, content="3")
 
-        # Incremental polling since m1
-        new_msgs = get_conversation_messages(conv, self.user_a, since_id=m1.id)
-        self.assertEqual(len(new_msgs), 2)
-        self.assertEqual(new_msgs[0].id, m2.id)
-        self.assertEqual(new_msgs[1].id, m3.id)
+        # Fetch latest 2
+        latest_msgs = get_conversation_messages(conv, self.user_a, limit=2)
+        self.assertEqual(len(latest_msgs), 2)
+        self.assertEqual(latest_msgs[0].id, m2.id)
+        self.assertEqual(latest_msgs[1].id, m3.id)
 
-        # Cursor pagination before m3
-        older_msgs = get_conversation_messages(conv, self.user_a, before_id=m3.id, limit=10)
-        self.assertEqual(len(older_msgs), 2)
+        # Fetch before m2
+        older_msgs = get_conversation_messages(conv, self.user_a, before_id=m2.id, limit=2)
+        self.assertEqual(len(older_msgs), 1)
         self.assertEqual(older_msgs[0].id, m1.id)
-        self.assertEqual(older_msgs[1].id, m2.id)
 
     def test_unsend_message_permissions(self):
         conv, _ = get_or_create_direct_conversation(self.user_a, self.user_b)
@@ -128,6 +128,7 @@ class DirectMessagingTests(TestCase):
         serialized = serialize_message(msg, self.user_a)
         self.assertIsNotNone(serialized['shared_post'])
         self.assertEqual(serialized['shared_post']['id'], post.id)
+        self.assertFalse(serialized['shared_post']['is_reel'])
 
     def test_media_validation(self):
         # Valid small image

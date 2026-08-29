@@ -1866,15 +1866,26 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
 
-        // Shared Post
+        // Shared Post or Reel
         if (msg.shared_post) {
+            const authorInitial = (msg.shared_post.username || 'U').charAt(0).toUpperCase();
             bubbleHtml += `
-                <a href="/post/${msg.shared_post.id}/" class="shared-post-card d-block mb-2 text-white">
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <strong class="small">${escapeHtml(msg.shared_post.username)}</strong>
+                <a href="/post/${msg.shared_post.id}/" class="shared-post-card d-block mb-2 text-white text-decoration-none" style="background: rgba(0,0,0,0.38); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 8px; max-width: 260px;">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        ${msg.shared_post.user_avatar ? `<img src="${msg.shared_post.user_avatar}" class="rounded-circle" style="width: 24px; height: 24px; object-fit: cover;">` : `<div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 0.65rem; background: var(--story-gradient);">${authorInitial}</div>`}
+                        <strong class="small text-truncate" style="font-size: 0.82rem;">${escapeHtml(msg.shared_post.username)}</strong>
+                        ${msg.shared_post.is_reel ? '<span class="badge bg-danger ms-auto" style="font-size: 0.62rem;"><i class="bi bi-play-btn-fill me-1"></i>Reel</span>' : ''}
                     </div>
-                    ${msg.shared_post.image_url ? `<img src="${msg.shared_post.image_url}" class="w-100 rounded mb-1" style="max-height: 160px; object-fit: cover;">` : ''}
-                    <p class="small text-white-50 mb-0">${escapeHtml(msg.shared_post.caption || '')}</p>
+                    ${msg.shared_post.image_url ? `<img src="${msg.shared_post.image_url}" class="w-100 rounded mb-1 shadow-sm" style="max-height: 180px; object-fit: cover;">` : ''}
+                    ${!msg.shared_post.image_url && msg.shared_post.video_url ? `
+                        <div class="position-relative w-100 rounded mb-1 overflow-hidden" style="max-height: 180px; background: #000;">
+                            <video src="${msg.shared_post.video_url}" class="w-100 h-100 rounded" style="max-height: 180px; object-fit: cover;" muted playsinline preload="metadata"></video>
+                            <div class="position-absolute top-50 start-50 translate-middle rounded-circle d-flex align-items-center justify-content-center shadow" style="width: 38px; height: 38px; background: rgba(0,0,0,0.65); color: #fff;">
+                                <i class="bi bi-play-fill fs-5" style="margin-left: 2px;"></i>
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${msg.shared_post.caption ? `<p class="small text-white-50 mb-0 text-truncate" style="font-size: 0.78rem;">${escapeHtml(msg.shared_post.caption)}</p>` : ''}
                 </a>
             `;
         }
@@ -1926,20 +1937,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Append reactions if any
         if (msg.reactions && msg.reactions.length > 0) {
+            let reactionsContainer = document.createElement('div');
+            reactionsContainer.className = 'message-reactions-container';
+            const reactionCounts = {};
+            msg.reactions.forEach(r => {
+                reactionCounts[r.emoji] = (reactionCounts[r.emoji] || 0) + 1;
+            });
+            let pillHtml = Object.entries(reactionCounts).map(([emoji, count]) => `
+                <span class="reaction-pill">${emoji}${count > 1 ? ` ${count}` : ''}</span>
+            `).join('');
+            reactionsContainer.innerHTML = pillHtml;
+            const bubbleEl = msgWrapper.querySelector('.message-bubble');
+            if (bubbleEl) bubbleEl.appendChild(reactionsContainer);
             msgWrapper.classList.add('has-reactions');
-            const bubble = msgWrapper.querySelector('.message-bubble');
-            if (bubble) {
-                const reactionCounts = {};
-                msg.reactions.forEach(r => { reactionCounts[r.emoji] = (reactionCounts[r.emoji] || 0) + 1; });
-                const reactionsContainer = document.createElement('div');
-                reactionsContainer.className = 'message-reactions-container';
-                reactionsContainer.innerHTML = Object.entries(reactionCounts).map(([emoji, count]) => `
-                    <span class="reaction-pill-badge" onclick="reactEmoji(${msg.id}, '${emoji}')">
-                        ${emoji} ${count > 1 ? `<span class="reaction-count">${count}</span>` : ''}
-                    </span>
-                `).join('');
-                bubble.appendChild(reactionsContainer);
-            }
         }
 
         if (messagesContainer) {
@@ -1991,7 +2001,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }
                     } else if (data.error) {
-                        alert(data.error);
+                        window.showToast && window.showToast(data.error, 'error');
                     }
                 })
                 .finally(() => {
@@ -2128,31 +2138,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Unsend Message (WebSocket + REST fallback)
     window.unsendMessage = function(msgId) {
-        if (!msgId || !confirm('Delete/Unsend this message? It will be removed for everyone.')) return;
-
-        if (isSocketOpen && chatSocket) {
-            chatSocket.send(JSON.stringify({
-                action: 'unsend_message',
-                message_id: msgId
-            }));
-            return;
-        }
-
-        fetch(`/direct/api/unsend/${msgId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCsrfToken(),
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                const el = document.querySelector(`[data-msg-id="${msgId}"]`);
-                if (el) {
-                    el.style.opacity = '0';
-                    setTimeout(() => el.remove(), 200);
+        if (!msgId) return;
+        window.showConfirmPopup({
+            title: 'Unsend Message?',
+            message: 'This will remove the message for everyone in this chat.',
+            confirmText: 'Unsend',
+            confirmType: 'danger',
+            icon: 'bi-trash3-fill',
+            onConfirm: () => {
+                if (isSocketOpen && chatSocket) {
+                    chatSocket.send(JSON.stringify({
+                        action: 'unsend_message',
+                        message_id: msgId
+                    }));
+                    return;
                 }
+
+                fetch(`/direct/api/unsend/${msgId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+                        if (el) {
+                            el.style.opacity = '0';
+                            setTimeout(() => el.remove(), 200);
+                        }
+                    } else if (data.error) {
+                        window.showToast && window.showToast(data.error, 'error');
+                    }
+                })
+                .catch(() => {
+                    window.showToast && window.showToast('Network error unsending message.', 'error');
+                });
             }
         });
     };
@@ -2182,18 +2205,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Hide Chat
     window.confirmHideChat = function() {
-        if (!activeConvId || !confirm('Hide this conversation from your inbox?')) return;
-        fetch(`/direct/api/hide/${activeConvId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCsrfToken(),
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.location.href = '/direct/';
+        if (!activeConvId) return;
+        window.showConfirmPopup({
+            title: 'Hide Conversation?',
+            message: 'This conversation will be hidden from your inbox until a new message is received.',
+            confirmText: 'Hide',
+            confirmType: 'warning',
+            icon: 'bi-archive-fill',
+            onConfirm: () => {
+                fetch(`/direct/api/hide/${activeConvId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '/direct/';
+                    }
+                });
             }
         });
     };
@@ -2261,7 +2293,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // =========================================================================
     async function startVoiceRecording() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert('Voice recording is not supported in this browser or requires an HTTPS connection.');
+            window.showToast && window.showToast('Voice recording requires microphone permissions or an HTTPS connection.', 'warning');
             return;
         }
 
@@ -2308,7 +2340,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (voiceRecordingBar) voiceRecordingBar.classList.remove('d-none');
         } catch (err) {
             console.error('Microphone access error:', err);
-            alert('Unable to access microphone. Please allow microphone permissions in your browser.');
+            window.showToast && window.showToast('Unable to access microphone. Please allow microphone permissions.', 'warning');
         }
     }
 
@@ -2458,12 +2490,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (discardVoicePreviewBtn) discardVoicePreviewBtn.click();
                     if (cancelReplyBtn) cancelReplyBtn.click();
                 } else {
-                    alert(data.error || 'Failed to send voice note.');
+                    window.showToast && window.showToast(data.error || 'Failed to send voice note.', 'error');
                 }
             })
             .catch(err => {
                 console.error('Error sending voice note:', err);
-                alert('Network error sending voice note.');
+                window.showToast && window.showToast('Network error sending voice note.', 'error');
             })
             .finally(() => {
                 confirmSendVoiceBtn.disabled = false;
@@ -2555,7 +2587,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // THEMES & CUSTOM WALLPAPER CLIENT ENGINE
     // =========================================================================
     const CHAT_THEMES = [
-        { key: 'default', name: 'Classic Dark', previewGradient: 'linear-gradient(135deg, #000000, #3797f0)', desc: 'OLED Pitch Black & Instagram Blue' },
+        { key: 'default', name: 'Classic Dark', previewGradient: 'linear-gradient(135deg, #000000, #3797f0)', desc: 'OLED Pitch Black & Accent Blue' },
         { key: 'cyberpunk', name: 'Cyberpunk Neon', previewGradient: 'linear-gradient(135deg, #f72585, #7209b7)', desc: 'Vibrant Magenta & Violet Electric' },
         { key: 'sunset', name: 'Sunset Romance', previewGradient: 'linear-gradient(135deg, #ff0844, #ffb199)', desc: 'Warm Peach & Sunset Coral' },
         { key: 'ocean', name: 'Ocean Breeze', previewGradient: 'linear-gradient(135deg, #00c6ff, #0072ff)', desc: 'Deep Sea Blue & Aquamarine' },
@@ -2693,12 +2725,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (modalEl && bootstrap.Modal.getInstance(modalEl)) {
                         bootstrap.Modal.getInstance(modalEl).hide();
                     }
+                    window.showToast && window.showToast('Custom wallpaper applied!', 'success');
                 } else {
-                    alert(data.error || 'Failed to upload custom wallpaper.');
+                    window.showToast && window.showToast(data.error || 'Failed to upload custom wallpaper.', 'error');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Network error while uploading wallpaper.');
+                window.showToast && window.showToast('Network error while uploading wallpaper.', 'error');
             } finally {
                 if (applyWallpaperBtn) {
                     applyWallpaperBtn.disabled = false;
