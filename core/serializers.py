@@ -75,6 +75,7 @@ def serialize_message(message, current_user=None):
         'sender_avatar': sender_avatar,
         'content': message.content,
         'image_url': message.get_image_url,
+        'voice_note_url': message.get_voice_note_url,
         'shared_post': serialize_post_preview(message.post),
         'reply_to': reply_preview,
         'read_at': message.read_at.strftime('%I:%M %p').lstrip('0') if message.read_at else None,
@@ -104,7 +105,7 @@ def serialize_conversation(conversation, current_user):
             'id': last_message.id,
             'sender_username': last_message.sender.username,
             'is_mine': last_message.sender == current_user,
-            'content': last_message.content if last_message.content else ('📷 Photo' if last_message.image else '📎 Post'),
+            'content': last_message.content if last_message.content else ('📷 Photo' if last_message.image else ('🎙️ Voice message' if last_message.voice_note else '📎 Post')),
             'created_at_time': last_message.created_at.strftime('%I:%M %p').lstrip('0'),
             'created_at_iso': last_message.created_at.isoformat(),
         }

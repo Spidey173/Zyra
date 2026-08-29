@@ -79,9 +79,10 @@ def direct_inbox(request, username=None):
 @login_required
 @require_POST
 def send_message_api(request, conversation_id):
-    """AJAX endpoint to send a message (text, image, shared post, or reply)."""
+    """AJAX endpoint to send a message (text, image, voice_note, shared post, or reply)."""
     content = request.POST.get('content', '')
     image = request.FILES.get('image')
+    voice_note = request.FILES.get('voice_note')
     post_id = request.POST.get('post_id')
     reply_to_id = request.POST.get('reply_to_id')
 
@@ -91,12 +92,31 @@ def send_message_api(request, conversation_id):
             conversation_id=conversation_id,
             content=content,
             image=image,
+            voice_note=voice_note,
             post_id=post_id,
             reply_to_id=reply_to_id
         )
+        serialized_msg = serialize_message(msg, request.user)
+
+        # Broadcast real-time event to channel layer subscribers
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f"chat_{conversation_id}",
+                    {
+                        "type": "chat_message",
+                        "message": serialized_msg,
+                    }
+                )
+        except Exception:
+            pass
+
         return JsonResponse({
             'success': True,
-            'message': serialize_message(msg, request.user)
+            'message': serialized_msg
         })
     except PermissionDenied as e:
         return HttpResponseForbidden(str(e))

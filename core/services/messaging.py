@@ -37,14 +37,14 @@ def get_or_create_direct_conversation(user1, user2):
         return conversation, True
 
 
-def send_message(sender, conversation_id, content='', image=None, post_id=None, reply_to_id=None):
+def send_message(sender, conversation_id, content='', image=None, voice_note=None, post_id=None, reply_to_id=None):
     """
     Sends a message in a conversation wrapped inside an atomic transaction.
-    Validates permissions, media, shared post, and reply message.
+    Validates permissions, media (images, voice notes), shared post, and reply message.
     """
     content = (content or '').strip()
-    if not content and not image and not post_id:
-        raise ValidationError("Message must contain text, an image, or a shared post.")
+    if not content and not image and not voice_note and not post_id:
+        raise ValidationError("Message must contain text, an image, a voice note, or a shared post.")
 
     try:
         conversation = Conversation.objects.get(id=conversation_id)
@@ -61,6 +61,10 @@ def send_message(sender, conversation_id, content='', image=None, post_id=None, 
         validate_media_file(image, media_types=('image',), max_size_mb=15)
         from ..utils.media import compress_and_optimize_image
         image = compress_and_optimize_image(image, max_dimension=1600, quality=85)
+
+    # Validate voice note
+    if voice_note:
+        validate_media_file(voice_note, media_types=('audio',), max_size_mb=25)
 
     # Validate shared post
     shared_post = None
@@ -84,6 +88,7 @@ def send_message(sender, conversation_id, content='', image=None, post_id=None, 
             sender=sender,
             content=content,
             image=image,
+            voice_note=voice_note,
             post=shared_post,
             parent_message=parent_message
         )

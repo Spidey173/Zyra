@@ -237,13 +237,57 @@
 
                 <!-- Instagram Interactive Message Input Bar -->
                 <footer class="chat-input-wrapper">
+                    <!-- 1. Active Voice Recording Bar (Hidden by default) -->
+                    <div id="voiceRecordingBar" class="voice-recording-bar d-none w-100 d-flex align-items-center justify-content-between px-3 py-2 rounded-pill mb-1" style="background: #1c1c1e; border: 1px solid #3a3a3c;">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="recording-pulse-dot"></span>
+                            <span id="voiceRecordTimer" class="fw-bold text-danger" style="font-size: 0.95rem; font-variant-numeric: tabular-nums;">0:00</span>
+                            <div class="voice-live-wave d-flex align-items-center gap-1">
+                                <span></span><span></span><span></span><span></span><span></span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0" id="cancelVoiceRecordBtn" title="Cancel recording" style="width: 32px; height: 32px;">
+                                <i class="bi bi-trash fs-6 text-white-50"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-1 shadow-sm" id="stopVoiceRecordBtn" title="Stop and listen">
+                                <i class="bi bi-stop-fill fs-5"></i> Done
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. Voice Note Preview / Review Bar (Listen before sending) -->
+                    <div id="voicePreviewBar" class="voice-preview-bar d-none w-100 d-flex align-items-center justify-content-between px-3 py-2 rounded-pill mb-1" style="background: #1c1c1e; border: 1px solid #FF2E93;">
+                        <div class="d-flex align-items-center gap-2 flex-grow-1 me-3">
+                            <button type="button" class="btn btn-sm rounded-circle d-flex align-items-center justify-content-center p-0" id="previewVoicePlayBtn" style="width: 36px; height: 36px; background: rgba(255,46,147,0.2); border: 1px solid #FF2E93; color: #fff; flex-shrink: 0;">
+                                <i class="bi bi-play-fill fs-5" id="previewPlayIcon" style="margin-left: 2px;"></i>
+                            </button>
+                            <div class="flex-grow-1 position-relative">
+                                <input type="range" class="form-range voice-preview-seekbar w-100" id="previewVoiceSeekBar" min="0" max="100" value="0" style="cursor: pointer; height: 4px;">
+                                <div class="d-flex justify-content-between text-white-50 mt-1" style="font-size: 0.72rem;">
+                                    <span id="previewVoiceCurrentTime">0:00</span>
+                                    <span id="previewVoiceTotalDuration">0:00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0" id="discardVoicePreviewBtn" title="Discard voice note" style="width: 32px; height: 32px;">
+                                <i class="bi bi-trash fs-6 text-danger"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-grad rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-1 shadow" id="confirmSendVoiceBtn" title="Send voice note">
+                                <i class="bi bi-send-fill text-white small"></i> Send
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. Standard Text / Attachment Input Pill -->
                     <form id="chatMessageForm" class="d-flex align-items-center gap-2 w-100 position-relative">
                         {% csrf_token %}
                         <input type="hidden" id="replyToInput" name="reply_to_id" value="">
                         <input type="file" id="imageFileInput" name="image" accept="image/*" class="d-none">
 
                         <!-- Main Input Container Pill -->
-                        <div class="chat-input-pill">
+                        <div class="chat-input-pill" id="normalInputPill">
                             
                             <!-- Emoji Button -->
                             <button type="button" class="chat-tool-btn" id="emojiToggleBtn" title="Insert emoji">
@@ -270,8 +314,8 @@
                             </button>
 
                             <!-- Voice Note Button -->
-                            <button type="button" class="chat-tool-btn" id="micBtn" onclick="simulateVoiceNote()" title="Voice note">
-                                <i class="bi bi-mic fs-5"></i>
+                            <button type="button" class="chat-tool-btn" id="micBtn" title="Record voice note">
+                                <i class="bi bi-mic fs-5 text-white"></i>
                             </button>
 
                             <!-- Double Heart Quick Reaction Button (When empty) -->
@@ -1030,12 +1074,50 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeDetailsBtn = document.getElementById('closeDetailsBtn');
     const chatDetailsDrawer = document.getElementById('chatDetailsDrawer');
 
+    // Voice Recording & Preview DOM elements
+    const micBtn = document.getElementById('micBtn');
+    const normalInputPill = document.getElementById('normalInputPill');
+    const voiceRecordingBar = document.getElementById('voiceRecordingBar');
+    const voiceRecordTimer = document.getElementById('voiceRecordTimer');
+    const cancelVoiceRecordBtn = document.getElementById('cancelVoiceRecordBtn');
+    const stopVoiceRecordBtn = document.getElementById('stopVoiceRecordBtn');
+    const voicePreviewBar = document.getElementById('voicePreviewBar');
+    const previewVoicePlayBtn = document.getElementById('previewVoicePlayBtn');
+    const previewPlayIcon = document.getElementById('previewPlayIcon');
+    const previewVoiceSeekBar = document.getElementById('previewVoiceSeekBar');
+    const previewVoiceCurrentTime = document.getElementById('previewVoiceCurrentTime');
+    const previewVoiceTotalDuration = document.getElementById('previewVoiceTotalDuration');
+    const discardVoicePreviewBtn = document.getElementById('discardVoicePreviewBtn');
+    const confirmSendVoiceBtn = document.getElementById('confirmSendVoiceBtn');
+
+    let mediaRecorder = null;
+    let audioStream = null;
+    let audioChunks = [];
+    let recordedAudioBlob = null;
+    let previewAudio = null;
+    let recordTimerInterval = null;
+    let recordSeconds = 0;
+
     let highestMessageId = 0;
     const renderedMessageIds = new Set();
     let isPolling = false;
     let selectedImageFile = null;
     let activeReplyMsg = null;
     let activeEditingMsgId = null;
+
+    // Helper: format audio seconds to M:SS
+    function formatAudioTime(seconds) {
+        if (isNaN(seconds) || seconds < 0 || !isFinite(seconds)) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    // Helper: generate Instagram style waveform bars
+    function generateWaveformBars() {
+        const heights = [35, 60, 45, 90, 75, 40, 85, 100, 55, 70, 95, 45, 60, 80, 50, 90, 65, 40, 75, 90, 50, 70, 40, 60];
+        return heights.map(h => `<div class="voice-waveform-bar" style="height: ${h}%;"></div>`).join('');
+    }
 
     // Helper: CSRF Token
     function getCsrfToken() {
@@ -1541,6 +1623,27 @@ document.addEventListener('DOMContentLoaded', function() {
             html += `<img src="${msg.image_url}" class="message-attached-img mb-1" onclick="openLightbox('${msg.image_url}')">`;
         }
 
+        // Voice Note Audio Player Bubble
+        if (msg.voice_note_url) {
+            html += `
+                <div class="voice-note-bubble d-flex align-items-center gap-2 py-1 mb-1">
+                    <button type="button" class="voice-play-toggle-btn btn btn-sm rounded-circle d-flex align-items-center justify-content-center p-0" data-audio-src="${msg.voice_note_url}" style="width: 36px; height: 36px; background: rgba(255,255,255,0.2); border: none; color: #fff; flex-shrink: 0;">
+                        <i class="bi bi-play-fill fs-5" style="margin-left: 2px;"></i>
+                    </button>
+                    <div class="voice-waveform-container flex-grow-1 position-relative" style="cursor: pointer;">
+                        <div class="voice-waveform-bars d-flex align-items-center gap-1" style="height: 20px;">
+                            ${generateWaveformBars()}
+                        </div>
+                        <div class="d-flex justify-content-between text-white-50 mt-1" style="font-size: 0.70rem;">
+                            <span class="voice-current-time">0:00</span>
+                            <span class="voice-total-duration">--:--</span>
+                        </div>
+                    </div>
+                    <i class="bi bi-mic-fill text-white-50 small ms-1" style="font-size: 0.85rem;"></i>
+                </div>
+            `;
+        }
+
         // Text
         if (msg.content) {
             html += `<div class="message-text-content">${escapeHtml(msg.content)}</div>`;
@@ -1881,6 +1984,301 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
             }, 250);
+        });
+    }
+
+    // =========================================================================
+    // VOICE NOTE RECORDING, PREVIEW & PLAYBACK ENGINE
+    // =========================================================================
+    async function startVoiceRecording() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Voice recording is not supported in this browser or requires an HTTPS connection.');
+            return;
+        }
+
+        try {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioChunks = [];
+            
+            let options = {};
+            if (MediaRecorder.isTypeSupported('audio/webm')) {
+                options = { mimeType: 'audio/webm' };
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                options = { mimeType: 'audio/mp4' };
+            } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+                options = { mimeType: 'audio/ogg' };
+            }
+
+            mediaRecorder = new MediaRecorder(audioStream, options);
+            mediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    audioChunks.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = function() {
+                if (audioChunks.length > 0) {
+                    recordedAudioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                    setupVoicePreview(recordedAudioBlob);
+                }
+            };
+
+            mediaRecorder.start(100);
+
+            // Update UI to recording state
+            recordSeconds = 0;
+            if (voiceRecordTimer) voiceRecordTimer.textContent = '0:00';
+            if (recordTimerInterval) clearInterval(recordTimerInterval);
+            recordTimerInterval = setInterval(() => {
+                recordSeconds++;
+                if (voiceRecordTimer) voiceRecordTimer.textContent = formatAudioTime(recordSeconds);
+            }, 1000);
+
+            if (normalInputPill) normalInputPill.classList.add('d-none');
+            if (voicePreviewBar) voicePreviewBar.classList.add('d-none');
+            if (voiceRecordingBar) voiceRecordingBar.classList.remove('d-none');
+        } catch (err) {
+            console.error('Microphone access error:', err);
+            alert('Unable to access microphone. Please allow microphone permissions in your browser.');
+        }
+    }
+
+    function stopVoiceRecording() {
+        if (recordTimerInterval) {
+            clearInterval(recordTimerInterval);
+            recordTimerInterval = null;
+        }
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        if (audioStream) {
+            audioStream.getTracks().forEach(t => t.stop());
+            audioStream = null;
+        }
+    }
+
+    function cancelVoiceRecording() {
+        if (recordTimerInterval) {
+            clearInterval(recordTimerInterval);
+            recordTimerInterval = null;
+        }
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.onstop = null;
+            mediaRecorder.stop();
+        }
+        if (audioStream) {
+            audioStream.getTracks().forEach(t => t.stop());
+            audioStream = null;
+        }
+        audioChunks = [];
+        recordedAudioBlob = null;
+        if (voiceRecordingBar) voiceRecordingBar.classList.add('d-none');
+        if (voicePreviewBar) voicePreviewBar.classList.add('d-none');
+        if (normalInputPill) normalInputPill.classList.remove('d-none');
+    }
+
+    function setupVoicePreview(blob) {
+        if (voiceRecordingBar) voiceRecordingBar.classList.add('d-none');
+        if (normalInputPill) normalInputPill.classList.add('d-none');
+        if (voicePreviewBar) voicePreviewBar.classList.remove('d-none');
+
+        const audioUrl = URL.createObjectURL(blob);
+        if (previewAudio) {
+            previewAudio.pause();
+            previewAudio = null;
+        }
+
+        previewAudio = new Audio(audioUrl);
+        if (previewPlayIcon) {
+            previewPlayIcon.className = 'bi bi-play-fill fs-5';
+        }
+        if (previewVoiceSeekBar) previewVoiceSeekBar.value = 0;
+        if (previewVoiceCurrentTime) previewVoiceCurrentTime.textContent = '0:00';
+        if (previewVoiceTotalDuration) previewVoiceTotalDuration.textContent = formatAudioTime(recordSeconds || 0);
+
+        previewAudio.addEventListener('loadedmetadata', function() {
+            if (previewAudio.duration && isFinite(previewAudio.duration)) {
+                if (previewVoiceTotalDuration) previewVoiceTotalDuration.textContent = formatAudioTime(previewAudio.duration);
+            }
+        });
+
+        previewAudio.addEventListener('timeupdate', function() {
+            if (previewAudio.duration) {
+                const progress = (previewAudio.currentTime / previewAudio.duration) * 100;
+                if (previewVoiceSeekBar) previewVoiceSeekBar.value = progress;
+                if (previewVoiceCurrentTime) previewVoiceCurrentTime.textContent = formatAudioTime(previewAudio.currentTime);
+            }
+        });
+
+        previewAudio.addEventListener('ended', function() {
+            if (previewPlayIcon) previewPlayIcon.className = 'bi bi-play-fill fs-5';
+            if (previewVoiceSeekBar) previewVoiceSeekBar.value = 0;
+            if (previewVoiceCurrentTime) previewVoiceCurrentTime.textContent = '0:00';
+        });
+    }
+
+    if (micBtn) {
+        micBtn.addEventListener('click', startVoiceRecording);
+    }
+    if (stopVoiceRecordBtn) {
+        stopVoiceRecordBtn.addEventListener('click', stopVoiceRecording);
+    }
+    if (cancelVoiceRecordBtn) {
+        cancelVoiceRecordBtn.addEventListener('click', cancelVoiceRecording);
+    }
+    if (discardVoicePreviewBtn) {
+        discardVoicePreviewBtn.addEventListener('click', function() {
+            if (previewAudio) {
+                previewAudio.pause();
+                previewAudio = null;
+            }
+            recordedAudioBlob = null;
+            if (voicePreviewBar) voicePreviewBar.classList.add('d-none');
+            if (voiceRecordingBar) voiceRecordingBar.classList.add('d-none');
+            if (normalInputPill) normalInputPill.classList.remove('d-none');
+        });
+    }
+
+    if (previewVoicePlayBtn) {
+        previewVoicePlayBtn.addEventListener('click', function() {
+            if (!previewAudio) return;
+            if (previewAudio.paused) {
+                previewAudio.play();
+                if (previewPlayIcon) previewPlayIcon.className = 'bi bi-pause-fill fs-5';
+            } else {
+                previewAudio.pause();
+                if (previewPlayIcon) previewPlayIcon.className = 'bi bi-play-fill fs-5';
+            }
+        });
+    }
+
+    if (previewVoiceSeekBar) {
+        previewVoiceSeekBar.addEventListener('input', function() {
+            if (!previewAudio || !previewAudio.duration) return;
+            previewAudio.currentTime = (this.value / 100) * previewAudio.duration;
+        });
+    }
+
+    if (confirmSendVoiceBtn && activeConvId) {
+        confirmSendVoiceBtn.addEventListener('click', function() {
+            if (!recordedAudioBlob) return;
+            if (previewAudio) previewAudio.pause();
+
+            confirmSendVoiceBtn.disabled = true;
+            confirmSendVoiceBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Sending...';
+
+            const formData = new FormData();
+            formData.append('voice_note', recordedAudioBlob, 'voice_note.webm');
+            if (activeReplyMsg) {
+                formData.append('reply_to_id', activeReplyMsg);
+            }
+
+            fetch(`/direct/api/send/${activeConvId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.message) {
+                    appendMessageDOM(data.message);
+                    scrollToBottom(true);
+                    if (discardVoicePreviewBtn) discardVoicePreviewBtn.click();
+                    if (cancelReplyBtn) cancelReplyBtn.click();
+                } else {
+                    alert(data.error || 'Failed to send voice note.');
+                }
+            })
+            .catch(err => {
+                console.error('Error sending voice note:', err);
+                alert('Network error sending voice note.');
+            })
+            .finally(() => {
+                confirmSendVoiceBtn.disabled = false;
+                confirmSendVoiceBtn.innerHTML = '<i class="bi bi-send-fill text-white small"></i> Send';
+            });
+        });
+    }
+
+    // Chat Message Audio Playback Event Delegation
+    let currentPlayingAudio = null;
+    let currentPlayingBtn = null;
+    let currentPlayingBubble = null;
+
+    if (messagesContainer) {
+        messagesContainer.addEventListener('click', function(e) {
+            const playBtn = e.target.closest('.voice-play-toggle-btn');
+            const bubble = e.target.closest('.voice-note-bubble');
+
+            if (!playBtn || !bubble) return;
+            const audioSrc = playBtn.getAttribute('data-audio-src');
+            if (!audioSrc) return;
+
+            if (currentPlayingAudio && currentPlayingBtn === playBtn) {
+                if (currentPlayingAudio.paused) {
+                    currentPlayingAudio.play();
+                    playBtn.querySelector('i').className = 'bi bi-pause-fill fs-5';
+                } else {
+                    currentPlayingAudio.pause();
+                    playBtn.querySelector('i').className = 'bi bi-play-fill fs-5';
+                }
+                return;
+            }
+
+            // Pause previous playing audio if any
+            if (currentPlayingAudio) {
+                currentPlayingAudio.pause();
+                if (currentPlayingBtn) {
+                    currentPlayingBtn.querySelector('i').className = 'bi bi-play-fill fs-5';
+                }
+                if (currentPlayingBubble) {
+                    currentPlayingBubble.querySelectorAll('.voice-waveform-bar').forEach(b => b.classList.remove('played'));
+                }
+            }
+
+            // Start new audio playback
+            currentPlayingAudio = new Audio(audioSrc);
+            currentPlayingBtn = playBtn;
+            currentPlayingBubble = bubble;
+            playBtn.querySelector('i').className = 'bi bi-pause-fill fs-5';
+
+            const currentTimeSpan = bubble.querySelector('.voice-current-time');
+            const totalDurationSpan = bubble.querySelector('.voice-total-duration');
+            const bars = bubble.querySelectorAll('.voice-waveform-bar');
+
+            currentPlayingAudio.addEventListener('loadedmetadata', function() {
+                if (currentPlayingAudio.duration && isFinite(currentPlayingAudio.duration)) {
+                    if (totalDurationSpan) totalDurationSpan.textContent = formatAudioTime(currentPlayingAudio.duration);
+                }
+            });
+
+            currentPlayingAudio.addEventListener('timeupdate', function() {
+                if (currentPlayingAudio.duration) {
+                    if (currentTimeSpan) currentTimeSpan.textContent = formatAudioTime(currentPlayingAudio.currentTime);
+                    const progress = currentPlayingAudio.currentTime / currentPlayingAudio.duration;
+                    const playedCount = Math.floor(progress * bars.length);
+                    bars.forEach((bar, idx) => {
+                        bar.classList.toggle('played', idx < playedCount);
+                    });
+                }
+            });
+
+            currentPlayingAudio.addEventListener('ended', function() {
+                playBtn.querySelector('i').className = 'bi bi-play-fill fs-5';
+                if (currentTimeSpan) currentTimeSpan.textContent = '0:00';
+                bars.forEach(b => b.classList.remove('played'));
+                currentPlayingAudio = null;
+                currentPlayingBtn = null;
+                currentPlayingBubble = null;
+            });
+
+            currentPlayingAudio.play().catch(err => {
+                console.error('Audio playback error:', err);
+                playBtn.querySelector('i').className = 'bi bi-play-fill fs-5';
+            });
         });
     }
 });

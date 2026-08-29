@@ -1197,3 +1197,87 @@ body {
         display: none;
     }
 }
+
+/* =====================================================================
+   INSTAGRAM VOICE NOTES & AUDIO RECORDING
+   ===================================================================== */
+.recording-pulse-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #ff3b30;
+    border-radius: 50%;
+    display: inline-block;
+    animation: recPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes recPulse {
+    0% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+    50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); }
+    100% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+}
+
+.voice-live-wave {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 16px;
+}
+
+.voice-live-wave span {
+    display: inline-block;
+    width: 3px;
+    height: 100%;
+    background: #ff3b30;
+    border-radius: 3px;
+    animation: liveWave 1s ease-in-out infinite alternate;
+}
+
+.voice-live-wave span:nth-child(1) { animation-delay: 0.1s; height: 35%; }
+.voice-live-wave span:nth-child(2) { animation-delay: 0.3s; height: 75%; }
+.voice-live-wave span:nth-child(3) { animation-delay: 0.5s; height: 100%; }
+.voice-live-wave span:nth-child(4) { animation-delay: 0.2s; height: 60%; }
+.voice-live-wave span:nth-child(5) { animation-delay: 0.4s; height: 40%; }
+
+@keyframes liveWave {
+    0% { transform: scaleY(0.3); }
+    100% { transform: scaleY(1); }
+}
+
+.voice-note-bubble {
+    user-select: none;
+    min-width: 210px;
+    max-width: 280px;
+}
+
+.voice-waveform-bars {
+    display: flex;
+    align-items: center;
+    gap: 2.5px;
+    height: 20px;
+    overflow: hidden;
+}
+
+.voice-waveform-bar {
+    width: 2.5px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.35);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.voice-waveform-bar.played {
+    background: #FF2E93;
+}
+
+.voice-play-toggle-btn {
+    transition: transform 0.15s var(--ease-spring), background 0.2s ease;
+}
+
+.voice-play-toggle-btn:hover {
+    transform: scale(1.08);
+    background: rgba(255, 46, 147, 0.3) !important;
+}
+
+.voice-preview-seekbar {
+    accent-color: #FF2E93;
+}
+

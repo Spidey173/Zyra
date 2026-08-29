@@ -332,6 +332,7 @@ class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     content = models.TextField(blank=True)
     image = models.ImageField(upload_to=generate_upload_path('direct'), blank=True, null=True)
+    voice_note = models.FileField(upload_to=generate_upload_path('voice_notes'), blank=True, null=True)
     post = models.ForeignKey(Post, on_delete=models.SET_NULL, null=True, blank=True, related_name='shared_in_messages')
     parent_message = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
     read_at = models.DateTimeField(null=True, blank=True)
@@ -355,6 +356,10 @@ class Message(models.Model):
     @property
     def get_image_url(self):
         return get_media_url(self.image)
+
+    @property
+    def get_voice_note_url(self):
+        return get_media_url(self.voice_note)
 
     def can_edit(self, user=None):
         """Allows editing only by original sender within 5 minutes of creation."""
