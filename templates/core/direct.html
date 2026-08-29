@@ -617,7 +617,7 @@ body:has(.direct-wrapper) .main-content-wrapper {
 .messages-container {
     flex-grow: 1;
     overflow-y: auto;
-    padding: 14px 16px;
+    padding: 10px 12px;
     display: flex;
     flex-direction: column;
     scrollbar-width: thin;
@@ -640,10 +640,10 @@ body:has(.direct-wrapper) .main-content-wrapper {
 .message-bubble-wrapper {
     display: flex;
     align-items: flex-end;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 6px;
+    margin-bottom: 6px;
     position: relative;
-    max-width: 75%;
+    max-width: 80%;
     animation: messageIn 0.18s ease-out;
 }
 
@@ -655,17 +655,22 @@ body:has(.direct-wrapper) .main-content-wrapper {
 .message-bubble-wrapper.sent {
     align-self: flex-end;
     margin-left: auto;
-    flex-direction: row-reverse;
+    margin-right: 0;
+    flex-direction: row;
+    justify-content: flex-end;
 }
 
 .message-bubble-wrapper.received {
     align-self: flex-start;
     margin-right: auto;
+    margin-left: 0;
+    flex-direction: row;
+    justify-content: flex-start;
 }
 
 .message-bubble {
     position: relative;
-    padding: 10px 16px;
+    padding: 9px 15px;
     font-size: 0.92rem;
     line-height: 1.4;
     word-break: break-word;
@@ -1646,12 +1651,13 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = '';
 
         // Received Avatar
+        let avatarHtml = '';
         if (!msg.is_mine) {
             const fallbackInitial = (activePartnerUsername || 'U').charAt(0).toUpperCase();
             if (activePartnerAvatar) {
-                html += `<img src="${activePartnerAvatar}" class="message-bubble-avatar" onerror="this.onerror=null; this.outerHTML='<div class=\\'message-bubble-avatar text-white fw-bold d-flex align-items-center justify-content-center\\' style=\\'background: var(--story-gradient); font-size: 0.75rem;\\'>${fallbackInitial}</div>';">`;
+                avatarHtml = `<img src="${activePartnerAvatar}" class="message-bubble-avatar" onerror="this.onerror=null; this.outerHTML='<div class=\\'message-bubble-avatar text-white fw-bold d-flex align-items-center justify-content-center\\' style=\\'background: var(--story-gradient); font-size: 0.75rem;\\'>${fallbackInitial}</div>';">`;
             } else {
-                html += `<div class="message-bubble-avatar text-white fw-bold d-flex align-items-center justify-content-center" style="background: var(--story-gradient); font-size: 0.75rem;">${fallbackInitial}</div>`;
+                avatarHtml = `<div class="message-bubble-avatar text-white fw-bold d-flex align-items-center justify-content-center" style="background: var(--story-gradient); font-size: 0.75rem;">${fallbackInitial}</div>`;
             }
         }
 
@@ -1665,7 +1671,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Action Toolbar
-        html += `
+        const toolbarHtml = `
             <div class="message-actions-toolbar">
                 <button type="button" class="msg-action-btn" onclick="toggleReactionPicker(${msg.id || 0}, event)" title="React"><i class="bi bi-emoji-smile"></i></button>
                 <button type="button" class="msg-action-btn" onclick="initiateReply(${msg.id || 0}, '${escapeHtml(msg.sender_username)}', '${escapeHtml(replySnippet)}')" title="Reply"><i class="bi bi-reply"></i></button>
@@ -1675,11 +1681,11 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         // Bubble Inner Content
-        html += `<div class="message-bubble" ondblclick="reactEmoji(${msg.id || 0}, '❤️')">`;
+        let bubbleHtml = `<div class="message-bubble" ondblclick="reactEmoji(${msg.id || 0}, '❤️')">`;
 
         // Reply quote (clickable to jump to replied message)
         if (msg.reply_to) {
-            html += `
+            bubbleHtml += `
                 <div class="message-reply-preview" onclick="scrollToMessage(${msg.reply_to.id})" title="Jump to replied message">
                     <strong class="d-block">${escapeHtml(msg.reply_to.sender_username)}</strong>
                     <span class="text-truncate d-block">${escapeHtml(msg.reply_to.content || 'Message')}</span>
@@ -1689,7 +1695,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Shared Post
         if (msg.shared_post) {
-            html += `
+            bubbleHtml += `
                 <a href="/post/${msg.shared_post.id}/" class="shared-post-card d-block mb-2 text-white">
                     <div class="d-flex align-items-center gap-2 mb-1">
                         <strong class="small">${escapeHtml(msg.shared_post.username)}</strong>
@@ -1702,12 +1708,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Image
         if (msg.image_url) {
-            html += `<img src="${msg.image_url}" class="message-attached-img mb-1" onclick="openLightbox('${msg.image_url}')">`;
+            bubbleHtml += `<img src="${msg.image_url}" class="message-attached-img mb-1" onclick="openLightbox('${msg.image_url}')">`;
         }
 
         // Voice Note Audio Player Bubble
         if (msg.voice_note_url) {
-            html += `
+            bubbleHtml += `
                 <div class="voice-note-bubble d-flex align-items-center gap-2 py-1 mb-1">
                     <button type="button" class="voice-play-toggle-btn btn btn-sm rounded-circle d-flex align-items-center justify-content-center p-0" data-audio-src="${msg.voice_note_url}" style="width: 36px; height: 36px; background: rgba(255,255,255,0.2); border: none; color: #fff; flex-shrink: 0;">
                         <i class="bi bi-play-fill fs-5" style="margin-left: 2px;"></i>
@@ -1728,18 +1734,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Text
         if (msg.content) {
-            html += `<div class="message-text-content">${escapeHtml(msg.content)}</div>`;
+            bubbleHtml += `<div class="message-text-content">${escapeHtml(msg.content)}</div>`;
         }
 
         // Meta
-        html += `
+        bubbleHtml += `
             <div class="message-meta">
                 ${msg.is_edited ? '<span class="message-edited-badge me-1">(edited)</span>' : ''}
                 ${msg.created_at_time || 'Just now'} ${msg.is_mine && msg.is_read ? '• Seen' : ''}
             </div>
         </div>`;
 
-        msgWrapper.innerHTML = html;
+        if (msg.is_mine) {
+            msgWrapper.innerHTML = toolbarHtml + bubbleHtml;
+        } else {
+            msgWrapper.innerHTML = avatarHtml + bubbleHtml + toolbarHtml;
+        }
 
         // Append reactions if any
         if (msg.reactions && msg.reactions.length > 0) {
