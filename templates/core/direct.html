@@ -617,7 +617,7 @@ body:has(.direct-wrapper) .main-content-wrapper {
 .messages-container {
     flex-grow: 1;
     overflow-y: auto;
-    padding: 20px 24px;
+    padding: 14px 16px;
     display: flex;
     flex-direction: column;
     scrollbar-width: thin;
@@ -643,7 +643,7 @@ body:has(.direct-wrapper) .main-content-wrapper {
     gap: 8px;
     margin-bottom: 8px;
     position: relative;
-    max-width: 70%;
+    max-width: 75%;
     animation: messageIn 0.18s ease-out;
 }
 
@@ -654,11 +654,13 @@ body:has(.direct-wrapper) .main-content-wrapper {
 
 .message-bubble-wrapper.sent {
     align-self: flex-end;
+    margin-left: auto;
     flex-direction: row-reverse;
 }
 
 .message-bubble-wrapper.received {
     align-self: flex-start;
+    margin-right: auto;
 }
 
 .message-bubble {
@@ -844,12 +846,41 @@ body:has(.direct-wrapper) .main-content-wrapper {
 }
 
 .message-reply-preview {
-    background: rgba(0, 0, 0, 0.25);
-    border-left: 3px solid #fff;
-    padding: 4px 8px;
-    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.28);
+    border-left: 3px solid rgba(255, 255, 255, 0.85);
+    padding: 5px 9px;
+    border-radius: 6px;
     margin-bottom: 6px;
     font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.15s ease, opacity 0.15s ease;
+    user-select: none;
+}
+
+.message-reply-preview:hover {
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0.95;
+}
+
+.message-reply-preview strong {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.message-reply-preview span {
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+@keyframes highlightPulse {
+    0% { transform: scale(1); filter: brightness(1); }
+    30% { transform: scale(1.05); filter: brightness(1.4); box-shadow: 0 0 16px rgba(255, 255, 255, 0.6); }
+    70% { transform: scale(1.02); filter: brightness(1.2); }
+    100% { transform: scale(1); filter: brightness(1); }
+}
+
+.message-highlight-pulse {
+    animation: highlightPulse 1.2s ease-in-out;
 }
 
 /* Typing Indicator */
@@ -1434,9 +1465,25 @@ document.addEventListener('DOMContentLoaded', function() {
         activeReplyMsg = msgId;
         if (replyToInput) replyToInput.value = msgId;
         if (replyToUserSpan) replyToUserSpan.textContent = username;
-        if (replyToTextP) replyToTextP.textContent = content;
+        if (replyToTextP) replyToTextP.textContent = content || 'Message';
         replyBanner.classList.remove('d-none');
         if (messageInput) messageInput.focus();
+    };
+
+    // Scroll to Replied Message & Highlight Pulse
+    window.scrollToMessage = function(targetId) {
+        if (!targetId) return;
+        const targetEl = document.querySelector(`[data-msg-id="${targetId}"]`);
+        if (targetEl) {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const bubble = targetEl.querySelector('.message-bubble');
+            if (bubble) {
+                bubble.classList.remove('message-highlight-pulse');
+                void bubble.offsetWidth; // trigger reflow
+                bubble.classList.add('message-highlight-pulse');
+                setTimeout(() => bubble.classList.remove('message-highlight-pulse'), 1300);
+            }
+        }
     };
 
     if (cancelReplyBtn) {
@@ -1600,18 +1647,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Received Avatar
         if (!msg.is_mine) {
+            const fallbackInitial = (activePartnerUsername || 'U').charAt(0).toUpperCase();
             if (activePartnerAvatar) {
-                html += `<img src="${activePartnerAvatar}" class="message-bubble-avatar">`;
+                html += `<img src="${activePartnerAvatar}" class="message-bubble-avatar" onerror="this.onerror=null; this.outerHTML='<div class=\\'message-bubble-avatar text-white fw-bold d-flex align-items-center justify-content-center\\' style=\\'background: var(--story-gradient); font-size: 0.75rem;\\'>${fallbackInitial}</div>';">`;
             } else {
-                html += `<div class="message-bubble-avatar text-white fw-bold d-flex align-items-center justify-content-center" style="background: var(--story-gradient); font-size: 0.75rem;">${activePartnerUsername.charAt(0).toUpperCase()}</div>`;
+                html += `<div class="message-bubble-avatar text-white fw-bold d-flex align-items-center justify-content-center" style="background: var(--story-gradient); font-size: 0.75rem;">${fallbackInitial}</div>`;
             }
+        }
+
+        // Determine human-friendly snippet for replying
+        let replySnippet = msg.content || '';
+        if (!replySnippet) {
+            if (msg.voice_note_url) replySnippet = '🎙️ Voice note';
+            else if (msg.image_url) replySnippet = '📷 Photo';
+            else if (msg.shared_post) replySnippet = '📎 Shared post';
+            else replySnippet = '💬 Message';
         }
 
         // Action Toolbar
         html += `
             <div class="message-actions-toolbar">
                 <button type="button" class="msg-action-btn" onclick="toggleReactionPicker(${msg.id || 0}, event)" title="React"><i class="bi bi-emoji-smile"></i></button>
-                <button type="button" class="msg-action-btn" onclick="initiateReply(${msg.id || 0}, '${escapeHtml(msg.sender_username)}', '${escapeHtml(msg.content || '')}')" title="Reply"><i class="bi bi-reply"></i></button>
+                <button type="button" class="msg-action-btn" onclick="initiateReply(${msg.id || 0}, '${escapeHtml(msg.sender_username)}', '${escapeHtml(replySnippet)}')" title="Reply"><i class="bi bi-reply"></i></button>
                 ${msg.is_mine && (msg.can_edit !== false) ? `<button type="button" class="msg-action-btn" onclick="initiateEdit(${msg.id || 0}, '${escapeHtml(msg.content || '')}')" title="Edit (within 5m)"><i class="bi bi-pencil"></i></button>` : ''}
                 ${msg.is_mine ? `<button type="button" class="msg-action-btn" onclick="unsendMessage(${msg.id || 0})" title="Delete"><i class="bi bi-trash"></i></button>` : ''}
             </div>
@@ -1620,12 +1677,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Bubble Inner Content
         html += `<div class="message-bubble" ondblclick="reactEmoji(${msg.id || 0}, '❤️')">`;
 
-        // Reply quote
+        // Reply quote (clickable to jump to replied message)
         if (msg.reply_to) {
             html += `
-                <div class="message-reply-preview">
+                <div class="message-reply-preview" onclick="scrollToMessage(${msg.reply_to.id})" title="Jump to replied message">
                     <strong class="d-block">${escapeHtml(msg.reply_to.sender_username)}</strong>
-                    <span class="text-truncate d-block">${escapeHtml(msg.reply_to.content)}</span>
+                    <span class="text-truncate d-block">${escapeHtml(msg.reply_to.content || 'Message')}</span>
                 </div>
             `;
         }
