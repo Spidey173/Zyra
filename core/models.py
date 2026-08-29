@@ -401,3 +401,26 @@ class MessageReaction(models.Model):
     def __str__(self):
         return f"{self.user.username} reacted {self.emoji} on msg #{self.message_id}"
 
+
+class PersistentMediaFile(models.Model):
+    """
+    Stores persistent media binary data in PostgreSQL database so media
+    files (reels, images, voice notes, stories) remain 100% persistent
+    even when Render instances sleep after 15 minutes or redeploy.
+    """
+    file_path = models.CharField(max_length=500, unique=True, db_index=True)
+    content_type = models.CharField(max_length=100, default='application/octet-stream')
+    data = models.BinaryField()
+    size = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['file_path']),
+        ]
+
+    def __str__(self):
+        return f"PersistentMediaFile: {self.file_path} ({self.size} bytes)"
+
+

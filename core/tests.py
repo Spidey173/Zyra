@@ -1,3 +1,4 @@
+import os
 import tempfile
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
@@ -145,3 +146,37 @@ class DirectMessagingTests(TestCase):
         generated_path = uploader(None, 'sample_photo.PNG')
         self.assertTrue(generated_path.startswith('test_folder/'))
         self.assertTrue(generated_path.endswith('.png'))
+
+    def test_persistent_media_storage_and_recovery(self):
+        from core.models import PersistentMediaFile
+        from core.storage import ResilientMediaStorage
+        from django.core.files.base import ContentFile
+        import tempfile
+        import shutil
+
+        storage = ResilientMediaStorage()
+        test_filename = 'test_reels/sample_reel.mp4'
+        test_data = b'fake mp4 video binary content 12345'
+
+        # 1. Save via storage
+        saved_name = storage.save(test_filename, ContentFile(test_data))
+        self.assertTrue(storage.exists(saved_name))
+
+        # 2. Check that it was saved to DB
+        stored = PersistentMediaFile.objects.filter(file_path=saved_name).first()
+        self.assertIsNotNone(stored)
+        self.assertEqual(stored.data, test_data)
+
+        # 3. Simulate disk wipe (like Render container restart)
+        full_path = storage.path(saved_name)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+        self.assertFalse(os.path.exists(full_path))
+
+        # 4. Request via storage or serve_media_view - it should automatically restore
+        client_response = self.client.get(f'/media/{saved_name}')
+        self.assertEqual(client_response.status_code, 200)
+        self.assertTrue(os.path.exists(full_path))
+        with open(full_path, 'rb') as f:
+            self.assertEqual(f.read(), test_data)
+
