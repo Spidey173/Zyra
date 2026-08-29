@@ -12,24 +12,29 @@
                     
                     <!-- Video -->
                     <div class="reel-video-wrapper w-100 h-100 position-relative">
-                        <video src="{{ post.get_video_url }}" class="reel-video w-100 h-100" style="object-fit: cover; cursor: pointer;" loop playsinline preload="metadata" muted></video>
+                        <video src="{{ post.get_video_url }}" class="reel-video w-100 h-100" style="object-fit: cover; cursor: pointer;" loop playsinline muted preload="auto"></video>
                         
+                        <!-- Center Play/Pause Floating Indicator -->
+                        <div class="video-play-indicator position-absolute top-50 start-50 translate-middle d-flex align-items-center justify-content-center" style="width: 64px; height: 64px; background: rgba(0,0,0,0.55); border-radius: 50%; color: #fff; z-index: 15; pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; opacity: 0;">
+                            <i class="bi bi-play-fill fs-1" style="margin-left: 4px;"></i>
+                        </div>
+
                         <!-- Double tap heart -->
                         <i class="bi bi-heart-fill double-tap-heart"></i>
 
                         <!-- Top Right Audio Mute Button -->
-                        <button type="button" class="video-audio-toggle position-absolute top-0 end-0 m-3" style="z-index: 20; background: rgba(0,0,0,0.5); border: none; width: 32px; height: 32px;">
-                            <i class="bi bi-volume-mute-fill fs-6"></i>
+                        <button type="button" class="video-audio-toggle position-absolute top-0 end-0 m-3" style="z-index: 20; background: rgba(0,0,0,0.5); border: none; width: 32px; height: 32px; border-radius: 50%;">
+                            <i class="bi bi-volume-mute-fill fs-6 text-white"></i>
                         </button>
 
                         <!-- Bottom Creator Info Overlay -->
-                        <div class="position-absolute bottom-0 start-0 w-100 p-3" style="z-index: 10; background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);">
+                        <div class="position-absolute bottom-0 start-0 w-100 p-3" style="z-index: 10; background: linear-gradient(0deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.35) 60%, transparent 100%);">
                             <div class="d-flex align-items-center gap-2 mb-2">
                                 <a href="{% url 'user_profile' username=post.user.username %}" class="text-decoration-none">
                                     {% if post.user.profile.get_profile_pic_url %}
-                                        <img src="{{ post.user.profile.get_profile_pic_url }}" alt="Avatar" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover; border: 1.5px solid #fff;">
+                                        <img src="{{ post.user.profile.get_profile_pic_url }}" alt="Avatar" class="rounded-circle" style="width: 34px; height: 34px; object-fit: cover; border: 1.5px solid #fff;">
                                     {% else %}
-                                        <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem; background: var(--story-gradient);">
+                                        <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 34px; height: 34px; font-size: 0.8rem; background: var(--story-gradient);">
                                             {{ post.user.username|slice:":1"|upper }}
                                         </div>
                                     {% endif %}
@@ -140,15 +145,17 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let globalMuted = true;
+    const reelsContainer = document.getElementById('reelsContainer');
+    const videos = Array.from(document.querySelectorAll('.reel-video'));
 
     // AJAX Like Handlers
     document.querySelectorAll('.like-ajax-form').forEach(form => {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const button = this.querySelector('button');
-            const icon = button.querySelector('i');
+            const icon = button ? button.querySelector('i') : null;
             const item = this.closest('.reel-item');
-            const countSpan = item.querySelector('.likes-count');
+            const countSpan = item ? item.querySelector('.likes-count') : null;
             const url = this.getAttribute('action');
             
             fetch(url, {
@@ -160,13 +167,13 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                countSpan.textContent = data.likes_count;
+                if (countSpan) countSpan.textContent = data.likes_count;
                 if (data.liked) {
-                    button.classList.add('liked');
-                    icon.className = 'bi bi-heart-fill text-danger fs-4';
+                    if (button) button.classList.add('liked');
+                    if (icon) icon.className = 'bi bi-heart-fill text-danger fs-4';
                 } else {
-                    button.classList.remove('liked');
-                    icon.className = 'bi bi-heart text-white fs-4';
+                    if (button) button.classList.remove('liked');
+                    if (icon) icon.className = 'bi bi-heart text-white fs-4';
                 }
             });
         });
@@ -177,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const button = this.querySelector('button');
-            const icon = button.querySelector('i');
+            const icon = button ? button.querySelector('i') : null;
             const url = this.getAttribute('action');
             
             fetch(url, {
@@ -190,74 +197,193 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.bookmarked) {
-                    button.classList.add('saved');
-                    icon.className = 'bi bi-bookmark-fill text-warning fs-4';
+                    if (button) button.classList.add('saved');
+                    if (icon) icon.className = 'bi bi-bookmark-fill text-warning fs-4';
                 } else {
-                    button.classList.remove('saved');
-                    icon.className = 'bi bi-bookmark text-white fs-4';
+                    if (button) button.classList.remove('saved');
+                    if (icon) icon.className = 'bi bi-bookmark text-white fs-4';
                 }
             });
         });
     });
 
-    // Video Play/Pause & Mute Toggle
-    const videos = document.querySelectorAll('.reel-video');
-    videos.forEach(video => {
-        const wrapper = video.closest('.reel-video-wrapper');
-        const audioBtn = wrapper.querySelector('.video-audio-toggle');
-        // Click to play/pause
-        video.addEventListener('click', function() {
-            if (video.paused) {
-                video.play();
-            } else {
-                video.pause();
+    function playReel(video) {
+        if (!video) return;
+        video.muted = globalMuted;
+        
+        // Pause all other videos
+        videos.forEach(v => {
+            if (v !== video && !v.paused) {
+                v.pause();
+                const ind = v.closest('.reel-video-wrapper')?.querySelector('.video-play-indicator');
+                if (ind) ind.style.opacity = '0';
             }
         });
 
-        // Double click to like
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                const ind = video.closest('.reel-video-wrapper')?.querySelector('.video-play-indicator');
+                if (ind) ind.style.opacity = '0';
+            }).catch(err => {
+                console.log("Autoplay waiting for user gesture:", err);
+                const ind = video.closest('.reel-video-wrapper')?.querySelector('.video-play-indicator');
+                if (ind) {
+                    ind.innerHTML = '<i class="bi bi-play-fill fs-1" style="margin-left: 4px;"></i>';
+                    ind.style.opacity = '1';
+                }
+            });
+        }
+    }
+
+    function pauseReel(video) {
+        if (!video) return;
+        video.pause();
+        const ind = video.closest('.reel-video-wrapper')?.querySelector('.video-play-indicator');
+        if (ind) ind.style.opacity = '0';
+    }
+
+    function togglePlayPause(video) {
+        const wrapper = video.closest('.reel-video-wrapper');
+        const indicator = wrapper ? wrapper.querySelector('.video-play-indicator') : null;
+
+        if (video.paused) {
+            video.muted = globalMuted;
+            video.play().then(() => {
+                if (indicator) {
+                    indicator.innerHTML = '<i class="bi bi-play-fill fs-1" style="margin-left: 4px;"></i>';
+                    indicator.style.opacity = '1';
+                    indicator.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                    setTimeout(() => {
+                        indicator.style.opacity = '0';
+                        indicator.style.transform = 'translate(-50%, -50%) scale(1)';
+                    }, 350);
+                }
+            }).catch(e => console.error(e));
+        } else {
+            video.pause();
+            if (indicator) {
+                indicator.innerHTML = '<i class="bi bi-pause-fill fs-1"></i>';
+                indicator.style.opacity = '1';
+                indicator.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                setTimeout(() => {
+                    indicator.style.opacity = '0';
+                    indicator.style.transform = 'translate(-50%, -50%) scale(1)';
+                }, 450);
+            }
+        }
+    }
+
+    // Bind each video
+    videos.forEach(video => {
+        const wrapper = video.closest('.reel-video-wrapper');
+        const item = video.closest('.reel-item');
+        const audioBtn = wrapper ? wrapper.querySelector('.video-audio-toggle') : null;
+        const heart = wrapper ? wrapper.querySelector('.double-tap-heart') : null;
+        const likeForm = item ? item.querySelector('.like-ajax-form') : null;
+
+        // Click on video to toggle play/pause
+        video.addEventListener('click', function(e) {
+            togglePlayPause(video);
+        });
+
+        // Double click to like with animation
         video.addEventListener('dblclick', function(e) {
+            e.stopPropagation();
             if (heart) {
+                heart.classList.remove('animate');
+                void heart.offsetWidth;
                 heart.classList.add('animate');
                 setTimeout(() => heart.classList.remove('animate'), 800);
             }
             if (likeForm) {
                 const likeBtn = likeForm.querySelector('button');
-                if (!likeBtn.classList.contains('liked')) {
+                if (likeBtn && !likeBtn.classList.contains('liked')) {
                     likeBtn.click();
                 }
             }
         });
 
+        // Audio Mute Toggle
         if (audioBtn) {
             audioBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 globalMuted = !globalMuted;
-                document.querySelectorAll('.reel-video').forEach(v => {
+                videos.forEach(v => {
                     v.muted = globalMuted;
-                    const icon = v.closest('.reel-video-wrapper').querySelector('.video-audio-toggle i');
+                    const icon = v.closest('.reel-video-wrapper')?.querySelector('.video-audio-toggle i');
                     if (icon) {
-                        icon.className = globalMuted ? 'bi bi-volume-mute-fill fs-6' : 'bi bi-volume-up-fill fs-6';
+                        icon.className = globalMuted ? 'bi bi-volume-mute-fill fs-6 text-white' : 'bi bi-volume-up-fill fs-6 text-white';
                     }
                 });
             });
         }
     });
 
-    // Autoplay snap logic
+    // IntersectionObserver with robust ratio thresholds
     if ('IntersectionObserver' in window) {
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 const video = entry.target;
-                if (entry.isIntersecting) {
-                    video.muted = globalMuted;
-                    video.play().catch(err => console.log("Reels autoplay block:", err));
-                } else {
-                    video.pause();
+                if (entry.isIntersecting && entry.intersectionRatio >= 0.4) {
+                    playReel(video);
+                } else if (!entry.isIntersecting || entry.intersectionRatio < 0.25) {
+                    pauseReel(video);
                 }
             });
-        }, { threshold: 0.75 });
+        }, {
+            root: reelsContainer || null,
+            threshold: [0.25, 0.4, 0.6]
+        });
 
         videos.forEach(video => observer.observe(video));
+    }
+
+    // Scroll listener fallback to ensure active center reel always plays
+    if (reelsContainer) {
+        let scrollTimer = null;
+        reelsContainer.addEventListener('scroll', function() {
+            clearTimeout(scrollTimer);
+            scrollTimer = setTimeout(() => {
+                const containerRect = reelsContainer.getBoundingClientRect();
+                const centerY = containerRect.top + containerRect.height / 2;
+
+                let closestVideo = null;
+                let minDistance = Infinity;
+
+                videos.forEach(v => {
+                    const rect = v.getBoundingClientRect();
+                    const videoCenterY = rect.top + rect.height / 2;
+                    const dist = Math.abs(centerY - videoCenterY);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closestVideo = v;
+                    }
+                });
+
+                if (closestVideo && minDistance < containerRect.height / 2) {
+                    playReel(closestVideo);
+                }
+            }, 80);
+        }, { passive: true });
+    }
+
+    // Auto-start first video immediately on page load
+    if (videos.length > 0) {
+        setTimeout(() => {
+            playReel(videos[0]);
+        }, 100);
+        
+        // Also resume if user clicks anywhere on document for first time
+        const startAutoplayOnGesture = function() {
+            if (videos[0] && videos[0].paused) {
+                playReel(videos[0]);
+            }
+            document.removeEventListener('click', startAutoplayOnGesture);
+            document.removeEventListener('touchstart', startAutoplayOnGesture);
+        };
+        document.addEventListener('click', startAutoplayOnGesture, { once: true });
+        document.addEventListener('touchstart', startAutoplayOnGesture, { once: true });
     }
 });
 </script>

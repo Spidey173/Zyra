@@ -1869,22 +1869,22 @@ document.addEventListener('DOMContentLoaded', function() {
         // Shared Post or Reel
         if (msg.shared_post) {
             const authorInitial = (msg.shared_post.username || 'U').charAt(0).toUpperCase();
+            const isReel = Boolean(msg.shared_post.is_reel || msg.shared_post.video_url);
             bubbleHtml += `
                 <a href="/post/${msg.shared_post.id}/" class="shared-post-card d-block mb-2 text-white text-decoration-none" style="background: rgba(0,0,0,0.38); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 8px; max-width: 260px;">
                     <div class="d-flex align-items-center gap-2 mb-2">
                         ${msg.shared_post.user_avatar ? `<img src="${msg.shared_post.user_avatar}" class="rounded-circle" style="width: 24px; height: 24px; object-fit: cover;">` : `<div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 0.65rem; background: var(--story-gradient);">${authorInitial}</div>`}
                         <strong class="small text-truncate" style="font-size: 0.82rem;">${escapeHtml(msg.shared_post.username)}</strong>
-                        ${msg.shared_post.is_reel ? '<span class="badge bg-danger ms-auto" style="font-size: 0.62rem;"><i class="bi bi-play-btn-fill me-1"></i>Reel</span>' : ''}
+                        ${isReel ? '<span class="badge bg-danger ms-auto" style="font-size: 0.62rem;"><i class="bi bi-play-btn-fill me-1"></i>Reel</span>' : ''}
                     </div>
-                    ${msg.shared_post.image_url ? `<img src="${msg.shared_post.image_url}" class="w-100 rounded mb-1 shadow-sm" style="max-height: 180px; object-fit: cover;">` : ''}
-                    ${!msg.shared_post.image_url && msg.shared_post.video_url ? `
+                    ${msg.shared_post.video_url ? `
                         <div class="position-relative w-100 rounded mb-1 overflow-hidden" style="max-height: 180px; background: #000;">
-                            <video src="${msg.shared_post.video_url}" class="w-100 h-100 rounded" style="max-height: 180px; object-fit: cover;" muted playsinline preload="metadata"></video>
-                            <div class="position-absolute top-50 start-50 translate-middle rounded-circle d-flex align-items-center justify-content-center shadow" style="width: 38px; height: 38px; background: rgba(0,0,0,0.65); color: #fff;">
+                            <video src="${msg.shared_post.video_url}" class="w-100 h-100 rounded" style="max-height: 180px; object-fit: cover;" muted loop playsinline preload="metadata" onmouseenter="this.play().catch(()=>{})" onmouseleave="this.pause()"></video>
+                            <div class="position-absolute top-50 start-50 translate-middle rounded-circle d-flex align-items-center justify-content-center shadow" style="width: 38px; height: 38px; background: rgba(0,0,0,0.65); color: #fff; pointer-events: none;">
                                 <i class="bi bi-play-fill fs-5" style="margin-left: 2px;"></i>
                             </div>
                         </div>
-                    ` : ''}
+                    ` : (msg.shared_post.image_url ? `<img src="${msg.shared_post.image_url}" class="w-100 rounded mb-1 shadow-sm" style="max-height: 180px; object-fit: cover;">` : '')}
                     ${msg.shared_post.caption ? `<p class="small text-white-50 mb-0 text-truncate" style="font-size: 0.78rem;">${escapeHtml(msg.shared_post.caption)}</p>` : ''}
                 </a>
             `;
