@@ -46,7 +46,7 @@
         <div class="post-body position-relative rounded-4 overflow-hidden mb-3" style="background: #000; border: 1px solid var(--border-subtle); min-height: 280px;">
             {% if post.get_video_url %}
                 <div class="post-video-container" style="border-radius: 0; border: none; margin-bottom: 0;">
-                    <video src="{{ post.get_video_url }}" class="post-video w-100" loop playsinline muted preload="metadata"></video>
+                    <video src="{{ post.get_video_url }}" class="post-video w-100" loop playsinline muted preload="auto" autoplay></video>
                     <button type="button" class="video-audio-toggle">
                         <i class="bi bi-volume-mute-fill"></i>
                     </button>
