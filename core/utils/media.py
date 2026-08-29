@@ -50,7 +50,7 @@ def get_media_url(file_field, default_url=None):
 
 ALLOWED_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
 ALLOWED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.webm', '.avi', '.m4v'}
-ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.aac', '.ogg'}
+ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.aac', '.ogg', '.webm', '.weba', '.mp4'}
 
 def validate_media_file(file_obj, media_types=('image',), max_size_mb=50):
     """
