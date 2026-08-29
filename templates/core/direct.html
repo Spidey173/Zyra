@@ -720,35 +720,55 @@ body:has(.direct-wrapper) .main-content-wrapper {
     transform: scale(1.15);
 }
 
-/* Reaction Badges on Messages */
+/* Reaction Badges on Messages (100% Instagram Authentic) */
 .message-reactions-container {
     position: absolute;
-    bottom: -10px;
-    right: 8px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    z-index: 5;
-}
-
-.reaction-pill-badge {
-    background: #1e1e1e;
-    border: 1px solid #363636;
-    border-radius: 12px;
-    padding: 1px 6px;
-    font-size: 0.78rem;
+    bottom: -11px;
     display: flex;
     align-items: center;
     gap: 3px;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+.message-bubble-wrapper.sent .message-reactions-container {
+    right: 8px;
+}
+
+.message-bubble-wrapper.received .message-reactions-container {
+    left: 8px;
+}
+
+.reaction-pill-badge {
+    background: #262626;
+    border: 2px solid #000000;
+    border-radius: 16px;
+    padding: 2px 7px;
+    font-size: 0.85rem;
+    line-height: 1.1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.6);
-    transition: transform 0.15s ease;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
+    transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.15s ease;
     user-select: none;
 }
 
 .reaction-pill-badge:hover {
-    transform: scale(1.15);
-    background: #2a2a2a;
+    transform: scale(1.22);
+    background: #363636;
+}
+
+.reaction-count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.message-bubble-wrapper.has-reactions {
+    margin-bottom: 16px;
 }
 
 /* Floating Reaction Picker */
@@ -1513,18 +1533,23 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateMessageReactionsDOM(msgId, reactions) {
         const wrapper = document.querySelector(`[data-msg-id="${msgId}"]`);
         if (!wrapper) return;
+        const bubble = wrapper.querySelector('.message-bubble');
+        if (!bubble) return;
 
-        let reactionsContainer = wrapper.querySelector('.message-reactions-container');
+        let reactionsContainer = bubble.querySelector('.message-reactions-container');
         if (!reactions || reactions.length === 0) {
             if (reactionsContainer) reactionsContainer.remove();
+            wrapper.classList.remove('has-reactions');
             return;
         }
 
         if (!reactionsContainer) {
             reactionsContainer = document.createElement('div');
             reactionsContainer.className = 'message-reactions-container';
-            wrapper.appendChild(reactionsContainer);
+            bubble.appendChild(reactionsContainer);
         }
+
+        wrapper.classList.add('has-reactions');
 
         const reactionCounts = {};
         reactions.forEach(r => {
@@ -1533,7 +1558,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         reactionsContainer.innerHTML = Object.entries(reactionCounts).map(([emoji, count]) => `
             <span class="reaction-pill-badge" onclick="reactEmoji(${msgId}, '${emoji}')">
-                ${emoji} ${count > 1 ? count : ''}
+                ${emoji} ${count > 1 ? `<span class="reaction-count">${count}</span>` : ''}
             </span>
         `).join('');
     }
@@ -1661,16 +1686,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Append reactions if any
         if (msg.reactions && msg.reactions.length > 0) {
-            const reactionCounts = {};
-            msg.reactions.forEach(r => { reactionCounts[r.emoji] = (reactionCounts[r.emoji] || 0) + 1; });
-            const reactionsContainer = document.createElement('div');
-            reactionsContainer.className = 'message-reactions-container';
-            reactionsContainer.innerHTML = Object.entries(reactionCounts).map(([emoji, count]) => `
-                <span class="reaction-pill-badge" onclick="reactEmoji(${msg.id}, '${emoji}')">
-                    ${emoji} ${count > 1 ? count : ''}
-                </span>
-            `).join('');
-            msgWrapper.appendChild(reactionsContainer);
+            msgWrapper.classList.add('has-reactions');
+            const bubble = msgWrapper.querySelector('.message-bubble');
+            if (bubble) {
+                const reactionCounts = {};
+                msg.reactions.forEach(r => { reactionCounts[r.emoji] = (reactionCounts[r.emoji] || 0) + 1; });
+                const reactionsContainer = document.createElement('div');
+                reactionsContainer.className = 'message-reactions-container';
+                reactionsContainer.innerHTML = Object.entries(reactionCounts).map(([emoji, count]) => `
+                    <span class="reaction-pill-badge" onclick="reactEmoji(${msg.id}, '${emoji}')">
+                        ${emoji} ${count > 1 ? `<span class="reaction-count">${count}</span>` : ''}
+                    </span>
+                `).join('');
+                bubble.appendChild(reactionsContainer);
+            }
         }
 
         if (messagesContainer) {
