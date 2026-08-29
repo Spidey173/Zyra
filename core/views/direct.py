@@ -55,7 +55,7 @@ def direct_inbox(request, username=None):
     initial_messages = []
     if active_conversation:
         try:
-            raw_msgs = get_conversation_messages(active_conversation, request.user, limit=40)
+            raw_msgs = get_conversation_messages(active_conversation, request.user)
             initial_messages = [serialize_message(m, request.user) for m in raw_msgs]
             mark_conversation_read(active_conversation, request.user)
         except PermissionDenied:
@@ -131,14 +131,16 @@ def send_message_api(request, conversation_id):
 @require_GET
 def get_messages_api(request, conversation_id):
     """
-    Incremental polling or cursor pagination endpoint.
+    Incremental polling or complete messages endpoint.
     - ?since_id=<id>: Returns only new messages received after since_id.
-    - ?before_id=<id>&limit=30: Returns older messages for scroll-up pagination.
+    - ?before_id=<id>: Returns older messages.
+    - default: Returns all messages for the conversation.
     """
     conversation = get_object_or_404(Conversation, id=conversation_id)
     since_id = request.GET.get('since_id')
     before_id = request.GET.get('before_id')
-    limit = int(request.GET.get('limit', 30))
+    limit_param = request.GET.get('limit')
+    limit = int(limit_param) if limit_param else None
 
     try:
         messages = get_conversation_messages(

@@ -116,12 +116,12 @@ def send_message(sender, conversation_id, content='', image=None, voice_note=Non
         return message
 
 
-def get_conversation_messages(conversation, user, before_id=None, since_id=None, limit=30):
+def get_conversation_messages(conversation, user, before_id=None, since_id=None, limit=None):
     """
-    Fetches messages for a conversation with cursor pagination or incremental polling.
-    - since_id: Returns only messages with id > since_id in chronological order (polling).
-    - before_id: Returns messages with id < before_id for older history infinite scroll.
-    - default: Returns latest limit messages in chronological order.
+    Fetches all messages for a conversation in chronological order without limits.
+    - since_id: Returns new messages received with id > since_id (for polling / incremental updates).
+    - before_id: Returns older messages with id < before_id (if paginating older history).
+    - default: Returns ALL messages of the conversation in chronological order.
     """
     # Verify user participation without extra query if already cached
     has_access = False
@@ -149,16 +149,23 @@ def get_conversation_messages(conversation, user, before_id=None, since_id=None,
     if before_id:
         try:
             before_id = int(before_id)
-            messages = list(qs.filter(id__lt=before_id).order_by('-created_at')[:limit])
+            filtered = qs.filter(id__lt=before_id).order_by('-created_at')
+            if limit:
+                messages = list(filtered[:limit])
+            else:
+                messages = list(filtered)
             messages.reverse()
             return messages
         except (ValueError, TypeError):
             pass
 
-    # Default latest page
-    messages = list(qs.order_by('-created_at')[:limit])
-    messages.reverse()
-    return messages
+    # Default: Return all conversation messages in chronological order
+    if limit:
+        messages = list(qs.order_by('-created_at')[:limit])
+        messages.reverse()
+        return messages
+    else:
+        return list(qs.order_by('created_at'))
 
 
 def mark_conversation_read(conversation, user):
