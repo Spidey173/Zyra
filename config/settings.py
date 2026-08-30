@@ -44,6 +44,24 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False
 
+# Auto-clean and sanitize CLOUDINARY_URL if prefixed with 'CLOUDINARY_URL=' or quotes
+_raw_cloudinary_url = os.environ.get('CLOUDINARY_URL', '').strip('\'" \t\r\n')
+if _raw_cloudinary_url.startswith('CLOUDINARY_URL='):
+    _raw_cloudinary_url = _raw_cloudinary_url[len('CLOUDINARY_URL='):].strip('\'" \t\r\n')
+
+if _raw_cloudinary_url and _raw_cloudinary_url.startswith('cloudinary://'):
+    os.environ['CLOUDINARY_URL'] = _raw_cloudinary_url
+    CLOUDINARY_URL = _raw_cloudinary_url
+    CLOUDINARY_STORAGE = {
+        'CLOUDINARY_URL': _raw_cloudinary_url,
+    }
+    CLOUDINARY_ENABLED = True
+else:
+    if 'CLOUDINARY_URL' in os.environ:
+        del os.environ['CLOUDINARY_URL']
+    CLOUDINARY_URL = None
+    CLOUDINARY_ENABLED = False
+
 # Application definition
 INSTALLED_APPS = [
     'daphne',
@@ -53,9 +71,20 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'cloudinary_storage',
-    'django.contrib.staticfiles',
-    'cloudinary',
+]
+
+if CLOUDINARY_ENABLED:
+    INSTALLED_APPS += [
+        'cloudinary_storage',
+        'django.contrib.staticfiles',
+        'cloudinary',
+    ]
+else:
+    INSTALLED_APPS += [
+        'django.contrib.staticfiles',
+    ]
+
+INSTALLED_APPS += [
     'core',
 ]
 
@@ -159,11 +188,7 @@ WHITENOISE_MAX_AGE = 31536000
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
-if CLOUDINARY_URL:
-    CLOUDINARY_STORAGE = {
-        'CLOUDINARY_URL': CLOUDINARY_URL,
-    }
+if CLOUDINARY_ENABLED:
     STORAGES = {
         "default": {
             "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
