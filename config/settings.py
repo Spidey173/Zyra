@@ -71,20 +71,8 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-]
-
-if CLOUDINARY_ENABLED:
-    INSTALLED_APPS += [
-        'cloudinary_storage',
-        'django.contrib.staticfiles',
-        'cloudinary',
-    ]
-else:
-    INSTALLED_APPS += [
-        'django.contrib.staticfiles',
-    ]
-
-INSTALLED_APPS += [
+    'django.contrib.staticfiles',
+    'cloudinary',
     'core',
 ]
 
