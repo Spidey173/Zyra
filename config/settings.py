@@ -53,7 +53,9 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
+    'cloudinary',
     'core',
 ]
 
@@ -116,18 +118,12 @@ else:
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-db_config = dj_database_url.config(
-    default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-    conn_max_age=600,
-    conn_health_checks=True,
-)
-
-database_url_str = os.environ.get('DATABASE_URL', '')
-if 'cockroach' in database_url_str:
-    db_config['ENGINE'] = 'django_cockroachdb'
-
 DATABASES = {
-    'default': db_config
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # Password validation
@@ -163,21 +159,28 @@ WHITENOISE_MAX_AGE = 31536000
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'home'
-LOGOUT_REDIRECT_URL = 'landing'
-
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-STORAGES = {
-    "default": {
-        "BACKEND": "core.storage.ResilientMediaStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
+if CLOUDINARY_URL:
+    CLOUDINARY_STORAGE = {
+        'CLOUDINARY_URL': CLOUDINARY_URL,
+    }
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "core.storage.ResilientMediaStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 # Caching Configuration (Redis in Production if available, else LocMemCache)
 REDIS_URL = os.environ.get('REDIS_URL', os.environ.get('REDIS_TLS_URL'))
