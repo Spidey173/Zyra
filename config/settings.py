@@ -116,12 +116,18 @@ else:
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+db_config = dj_database_url.config(
+    default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+    conn_max_age=600,
+    conn_health_checks=True,
+)
+
+database_url_str = os.environ.get('DATABASE_URL', '')
+if 'cockroach' in database_url_str:
+    db_config['ENGINE'] = 'django_cockroachdb'
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    'default': db_config
 }
 
 # Password validation
