@@ -147,36 +147,19 @@ class DirectMessagingTests(TestCase):
         self.assertTrue(generated_path.startswith('test_folder/'))
         self.assertTrue(generated_path.endswith('.png'))
 
-    def test_persistent_media_storage_and_recovery(self):
-        from core.models import PersistentMediaFile
-        from core.storage import ResilientMediaStorage
+    def test_cloudinary_media_storage(self):
+        from core.storage import CloudinaryMediaStorage
         from django.core.files.base import ContentFile
-        import tempfile
-        import shutil
 
-        storage = ResilientMediaStorage()
-        test_filename = 'test_reels/sample_reel.mp4'
-        test_data = b'fake mp4 video binary content 12345'
+        storage = CloudinaryMediaStorage()
+        test_filename = 'posts/test_image.png'
+        # Tiny 1x1 transparent PNG binary bytes
+        tiny_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+        
+        saved_url = storage.save(test_filename, ContentFile(tiny_png))
+        self.assertTrue(saved_url.startswith('http://') or saved_url.startswith('https://') or 'test_image' in saved_url)
+        
+        resolved_url = storage.url(saved_url)
+        self.assertTrue(resolved_url.startswith('http://') or resolved_url.startswith('https://'))
 
-        # 1. Save via storage
-        saved_name = storage.save(test_filename, ContentFile(test_data))
-        self.assertTrue(storage.exists(saved_name))
-
-        # 2. Check that it was saved to DB
-        stored = PersistentMediaFile.objects.filter(file_path=saved_name).first()
-        self.assertIsNotNone(stored)
-        self.assertEqual(stored.data, test_data)
-
-        # 3. Simulate disk wipe (like Render container restart)
-        full_path = storage.path(saved_name)
-        if os.path.exists(full_path):
-            os.remove(full_path)
-        self.assertFalse(os.path.exists(full_path))
-
-        # 4. Request via storage or serve_media_view - it should automatically restore
-        client_response = self.client.get(f'/media/{saved_name}')
-        self.assertEqual(client_response.status_code, 200)
-        self.assertTrue(os.path.exists(full_path))
-        with open(full_path, 'rb') as f:
-            self.assertEqual(f.read(), test_data)
 

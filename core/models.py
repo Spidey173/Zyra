@@ -17,7 +17,7 @@ class UserProfile(models.Model):
     display_name = models.CharField(max_length=100, blank=True)
     gender = models.CharField(max_length=30, choices=GENDER_CHOICES, default='he/him', blank=True)
     bio = models.TextField(max_length=500, blank=True)
-    profile_pic = models.ImageField(upload_to=generate_upload_path('avatars'), blank=True, null=True)
+    profile_pic = models.ImageField(upload_to=generate_upload_path('avatars'), max_length=500, blank=True, null=True)
     last_seen = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -84,8 +84,8 @@ def save_user_profile(sender, instance, **kwargs):
 class Post(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
     caption = models.TextField(max_length=1000, blank=True)
-    image = models.ImageField(upload_to=generate_upload_path('posts'), blank=True, null=True)
-    video = models.FileField(upload_to=generate_upload_path('reels'), blank=True, null=True)
+    image = models.ImageField(upload_to=generate_upload_path('posts'), max_length=500, blank=True, null=True)
+    video = models.FileField(upload_to=generate_upload_path('reels'), max_length=500, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
@@ -213,9 +213,9 @@ class Notification(models.Model):
 
 class Story(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='stories')
-    image = models.ImageField(upload_to=generate_upload_path('stories'), blank=True, null=True)
-    video = models.FileField(upload_to=generate_upload_path('stories'), blank=True, null=True)
-    music = models.FileField(upload_to=generate_upload_path('stories'), blank=True, null=True)
+    image = models.ImageField(upload_to=generate_upload_path('stories'), max_length=500, blank=True, null=True)
+    video = models.FileField(upload_to=generate_upload_path('stories'), max_length=500, blank=True, null=True)
+    music = models.FileField(upload_to=generate_upload_path('stories'), max_length=500, blank=True, null=True)
     caption = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -257,7 +257,7 @@ class Conversation(models.Model):
     conversation_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default=DIRECT)
     title = models.CharField(max_length=255, blank=True)
     theme_key = models.CharField(max_length=50, default='default')
-    custom_theme_image = models.ImageField(upload_to='conversation_themes/%Y/%m/', null=True, blank=True)
+    custom_theme_image = models.ImageField(upload_to='conversation_themes/%Y/%m/', max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
 
@@ -337,8 +337,8 @@ class Message(models.Model):
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     content = models.TextField(blank=True)
-    image = models.ImageField(upload_to=generate_upload_path('direct'), blank=True, null=True)
-    voice_note = models.FileField(upload_to=generate_upload_path('voice_notes'), blank=True, null=True)
+    image = models.ImageField(upload_to=generate_upload_path('direct'), max_length=500, blank=True, null=True)
+    voice_note = models.FileField(upload_to=generate_upload_path('voice_notes'), max_length=500, blank=True, null=True)
     post = models.ForeignKey(Post, on_delete=models.SET_NULL, null=True, blank=True, related_name='shared_in_messages')
     parent_message = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
     read_at = models.DateTimeField(null=True, blank=True)

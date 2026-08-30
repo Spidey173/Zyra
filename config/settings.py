@@ -44,24 +44,6 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False
 
-# Auto-clean and sanitize CLOUDINARY_URL if prefixed with 'CLOUDINARY_URL=' or quotes
-_raw_cloudinary_url = os.environ.get('CLOUDINARY_URL', '').strip('\'" \t\r\n')
-if _raw_cloudinary_url.startswith('CLOUDINARY_URL='):
-    _raw_cloudinary_url = _raw_cloudinary_url[len('CLOUDINARY_URL='):].strip('\'" \t\r\n')
-
-if _raw_cloudinary_url and _raw_cloudinary_url.startswith('cloudinary://'):
-    os.environ['CLOUDINARY_URL'] = _raw_cloudinary_url
-    CLOUDINARY_URL = _raw_cloudinary_url
-    CLOUDINARY_STORAGE = {
-        'CLOUDINARY_URL': _raw_cloudinary_url,
-    }
-    CLOUDINARY_ENABLED = True
-else:
-    if 'CLOUDINARY_URL' in os.environ:
-        del os.environ['CLOUDINARY_URL']
-    CLOUDINARY_URL = None
-    CLOUDINARY_ENABLED = False
-
 # Application definition
 INSTALLED_APPS = [
     'daphne',
@@ -72,7 +54,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'cloudinary',
     'core',
 ]
 
@@ -169,32 +150,33 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-WHITENOISE_MANIFEST_STRICT = False
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 WHITENOISE_MAX_AGE = 31536000
+
+# Cloudinary Configuration (25GB Free Cloud Storage for Reels, Posts, Stories, Avatars, Media)
+CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', 'dg04dd5o1')
+CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY', '549768947857682')
+CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET', 'R2dzLnaTB_gIbCVcWF9ptUIVZN8')
 
 # Media Files Storage
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-if CLOUDINARY_ENABLED:
-    STORAGES = {
-        "default": {
-            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
-        },
-    }
-else:
-    STORAGES = {
-        "default": {
-            "BACKEND": "core.storage.ResilientMediaStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
-        },
-    }
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'landing'
+
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+STORAGES = {
+    "default": {
+        "BACKEND": "core.storage.CloudinaryMediaStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 
 # Caching Configuration (Redis in Production if available, else LocMemCache)
 REDIS_URL = os.environ.get('REDIS_URL', os.environ.get('REDIS_TLS_URL'))

@@ -15,3 +15,5 @@ services:
         value: "False"
       - key: DATABASE_URL
         value: "postgresql://neondb_owner:npg_hqrO7D5glaKj@ep-round-smoke-ael2llxu-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+      - key: CLOUDINARY_URL
+        value: "cloudinary://549768947857682:R2dzLnaTB_gIbCVcWF9ptUIVZN8@dg04dd5o1"
