@@ -1,0 +1,101 @@
+{% extends 'core/base.html' %}
+{% block title %}Login • {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-between align-items-center g-5 py-5 my-md-3" style="min-height: calc(100vh - 160px);">
+    <!-- Left Column: Bold Graphic Headline & Brand -->
+    <div class="col-lg-6">
+        <div class="pe-xl-4 position-relative">
+            <!-- Ambient Radial Glow -->
+            <div class="position-absolute top-50 start-0 translate-middle-y w-100 h-100" style="background: radial-gradient(circle, rgba(255, 46, 147, 0.22) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 65%); filter: blur(50px); pointer-events: none; z-index: 0;"></div>
+
+            <div class="position-relative z-1">
+                <!-- Brand Title -->
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <span class="d-inline-flex align-items-center justify-content-center rounded-3" style="width: 44px; height: 44px; background: rgba(255, 46, 147, 0.15); color: #FF2E93; border: 1px solid rgba(255, 46, 147, 0.3);">
+                        <i class="bi bi-stars fs-4"></i>
+                    </span>
+                    <span class="fs-2 fw-800" style="font-family: 'Syne', sans-serif; letter-spacing: -0.04em; background: var(--brand-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{{ APP_NAME }}</span>
+                </div>
+
+                <!-- Giant Display Headline -->
+                <h1 class="display-3 text-white mb-4" style="font-family: 'Syne', sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1;">
+                    Connect & share in <br>
+                    <span style="background: var(--brand-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Real-Time</span>
+                </h1>
+
+                <!-- Concise Subtitle -->
+                <p class="text-white-50 fs-5 mb-0" style="max-width: 490px; line-height: 1.6; font-weight: 400;">
+                    Experience next-gen social connection with real-time direct messaging, 60fps vertical reels, and 24h stories delivered directly to your screen.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Clean Frosted Auth Card -->
+    <div class="col-lg-5 col-md-8 mx-auto mx-lg-0">
+        <div class="p-4 p-sm-5 position-relative" style="border-radius: 28px; background: rgba(18, 22, 32, 0.75); border: 1px solid rgba(255, 46, 147, 0.2); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 30px 80px -10px rgba(0, 0, 0, 0.9);">
+            
+            <h2 class="text-white mb-4" style="font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2.1rem; letter-spacing: -0.03em;">Login</h2>
+            
+            <form method="POST" action="{% url 'login' %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="username" class="form-label text-white-50 small fw-semibold">Username</label>
+                    <input type="text" name="username" id="username" class="form-control" placeholder="Enter your username" required autofocus style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; color: #fff; padding: 12px 16px;">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="password" class="form-label text-white-50 small fw-semibold">Password</label>
+                    <div class="position-relative">
+                        <input type="password" name="password" id="password" class="form-control pe-5" placeholder="Enter your password" required style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; color: #fff; padding: 12px 16px;">
+                        <button class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-secondary text-decoration-none pe-3 border-0 bg-transparent" type="button" id="togglePasswordBtn">
+                            <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-grad w-100 py-3 fw-bold d-flex align-items-center justify-content-center gap-2 mb-3" style="border-radius: 14px; font-weight: 700; font-size: 1rem;">
+                    <span>Login</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </form>
+            
+            <!-- Quick Demo Login Button -->
+            <button type="button" class="btn w-100 py-2 mb-4 small d-flex align-items-center justify-content-center gap-2" style="background: rgba(255, 46, 147, 0.08); border: 1px solid rgba(255, 46, 147, 0.3); color: #FF2E93; border-radius: 14px;" onclick="fillDemo('ash', 'Password123!')">
+                <i class="bi bi-lightning-charge-fill text-warning"></i>
+                <span class="fw-semibold">1-Click Demo Login (ash)</span>
+            </button>
+            
+            <div class="text-center mb-4">
+                <span class="text-secondary small">Don't have an account?</span>
+                <a href="{% url 'register' %}" class="fw-bold text-decoration-none small ms-1" style="color: #FF2E93;">Sign Up</a>
+            </div>
+
+            <div class="text-center text-secondary" style="font-size: 0.72rem; line-height: 1.5;">
+                By logging in, you agree to our <a href="#" class="text-decoration-none" style="color: #FF2E93;">Terms of Service</a> and <a href="#" class="text-decoration-none" style="color: #FF2E93;">Privacy Policy</a>.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function fillDemo(username, password) {
+    document.getElementById('username').value = username;
+    document.getElementById('password').value = password;
+    document.querySelector('form').submit();
+}
+
+const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+const passwordInput = document.getElementById('password');
+const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+
+if (togglePasswordBtn && passwordInput) {
+    togglePasswordBtn.addEventListener('click', function() {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        togglePasswordIcon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+    });
+}
+</script>
+{% endblock %}
