@@ -1,0 +1,324 @@
+{% extends 'core/base.html' %}
+{% block title %}Notifications • {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-2">
+    <div class="col-12" style="max-width: 640px;">
+        
+        <!-- Authentic Instagram Notifications Card -->
+        <div class="notifications-card p-3 p-md-4">
+            
+            <!-- Header with Title & Filter Pills -->
+            <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 mb-4 pb-3 border-bottom border-dark">
+                <h4 class="text-white fw-bold mb-0" style="letter-spacing: -0.02em;">Notifications</h4>
+                
+                <!-- Quick Filter Buttons -->
+                <div class="d-flex align-items-center gap-1 overflow-x-auto pb-1" id="notifFilterBar">
+                    <button type="button" class="btn notif-filter-btn active" data-filter="all">All</button>
+                    <button type="button" class="btn notif-filter-btn" data-filter="comment">Comments</button>
+                    <button type="button" class="btn notif-filter-btn" data-filter="follow">Follows</button>
+                </div>
+            </div>
+
+            <!-- Notifications Stream -->
+            <div class="notifications-stream d-flex flex-column gap-1" id="notificationsStream">
+                {% for notification in notifications %}
+                    <div class="notification-item d-flex align-items-center justify-content-between p-2 rounded-3" 
+                         data-type="{{ notification.notification_type }}">
+                        
+                        <!-- Left: Avatar + Details -->
+                        <div class="d-flex align-items-center gap-3 min-w-0 flex-grow-1 me-2">
+                            
+                            <!-- Avatar with Activity Badge -->
+                            <div class="position-relative flex-shrink-0">
+                                <a href="{% url 'user_profile' username=notification.sender.username %}" class="text-decoration-none">
+                                    {% if notification.sender.profile.get_profile_pic_url %}
+                                        <img src="{{ notification.sender.profile.get_profile_pic_url }}" alt="{{ notification.sender.username }}" class="notif-avatar">
+                                    {% else %}
+                                        <div class="notif-avatar-placeholder">
+                                            {{ notification.sender.username|slice:":1"|upper }}
+                                        </div>
+                                    {% endif %}
+                                </a>
+
+                                <!-- Notification Type Mini Badge -->
+                                <span class="notif-type-badge notif-badge-{{ notification.notification_type }}">
+                                    {% if notification.notification_type == 'like' %}
+                                        <i class="bi bi-heart-fill"></i>
+                                    {% elif notification.notification_type == 'comment' %}
+                                        <i class="bi bi-chat-fill"></i>
+                                    {% elif notification.notification_type == 'message' %}
+                                        <i class="bi bi-send-fill"></i>
+                                    {% else %}
+                                        <i class="bi bi-person-fill"></i>
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <!-- Notification Message Text -->
+                            <div class="min-w-0 flex-grow-1" style="line-height: 1.35;">
+                                <div class="text-white small">
+                                    <a href="{% url 'user_profile' username=notification.sender.username %}" class="fw-bold text-white text-decoration-none me-1 hover-underline">
+                                        {{ notification.sender.username }}
+                                    </a>
+                                    {% if notification.notification_type == 'like' %}
+                                        <span class="text-light">liked your post.</span>
+                                    {% elif notification.notification_type == 'comment' %}
+                                        <span class="text-light">commented on your post.</span>
+                                    {% elif notification.notification_type == 'message' %}
+                                        <span class="text-light">sent you a direct message.</span>
+                                    {% elif notification.notification_type == 'follow' %}
+                                        <span class="text-light">started following you.</span>
+                                    {% endif %}
+                                    <span class="text-white-50 ms-1" style="font-size: 0.76rem;">{{ notification.created_at|timesince }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Action Button or Post Media Thumbnail -->
+                        <div class="flex-shrink-0">
+                            {% if notification.notification_type == 'follow' %}
+                                <form method="POST" action="{% url 'follow_user' username=notification.sender.username %}" class="follow-notif-ajax-form m-0">
+                                    {% csrf_token %}
+                                    {% if notification.is_following_sender %}
+                                        <button type="submit" class="btn btn-sm btn-outline-custom rounded-2 px-3 py-1 fw-semibold" style="font-size: 0.82rem; background: #262626; border-color: #363636;">Following</button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-sm btn-grad rounded-2 px-3 py-1 fw-semibold" style="font-size: 0.82rem;">Follow</button>
+                                    {% endif %}
+                                </form>
+                            {% elif notification.notification_type == 'message' %}
+                                <a href="{% url 'direct_chat' username=notification.sender.username %}" class="btn btn-sm btn-outline-custom rounded-2 px-3 py-1 fw-semibold text-decoration-none" style="font-size: 0.82rem; background: #262626; border-color: #363636;">
+                                    Message
+                                </a>
+                            {% elif notification.post %}
+                                <a href="{% url 'post_detail' post_id=notification.post.id %}" class="notif-media-preview d-block position-relative rounded-2 overflow-hidden" style="width: 44px; height: 44px; background: #121212; border: 1px solid #262626;">
+                                    {% if notification.post.get_image_url %}
+                                        <img src="{{ notification.post.get_image_url }}" alt="Thumbnail" class="w-100 h-100" style="object-fit: cover;">
+                                    {% elif notification.post.get_video_url %}
+                                        <video src="{{ notification.post.get_video_url }}" class="w-100 h-100" style="object-fit: cover;" muted playsinline></video>
+                                        <i class="bi bi-camera-reels-fill position-absolute top-0 end-0 m-1 text-white" style="font-size: 0.65rem; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));"></i>
+                                    {% else %}
+                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center text-secondary small p-1 text-center" style="background: linear-gradient(135deg, #1e1b4b, #311042); font-size: 0.65rem;">
+                                            Post
+                                        </div>
+                                    {% endif %}
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <!-- Empty Activity State -->
+                    <div class="text-center py-5 px-3 text-secondary">
+                        <div class="empty-notif-circle mx-auto mb-3">
+                            <i class="bi bi-heart fs-1 text-white-50"></i>
+                        </div>
+                        <h5 class="text-white fw-bold mb-1">Activity On Your Posts</h5>
+                        <p class="small text-white-50 mb-0" style="max-width: 320px; margin: 0 auto; line-height: 1.45;">
+                            When someone likes or comments on your posts, or follows you, you'll see it here.
+                        </p>
+                    </div>
+                {% endfor %}
+
+                <!-- Dynamic Filter Empty Placeholder -->
+                <div id="filterEmptyPlaceholder" class="text-center py-5 px-3 text-secondary d-none">
+                    <div class="empty-notif-circle mx-auto mb-3">
+                        <i class="bi bi-bell-slash fs-2 text-white-50"></i>
+                    </div>
+                    <h5 class="text-white fw-bold mb-1" id="filterEmptyTitle">No Activity</h5>
+                    <p class="small text-white-50 mb-0" id="filterEmptyDesc" style="max-width: 300px; margin: 0 auto;">
+                        There are no notifications in this category yet.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+.notifications-card {
+    background: #000000;
+    border: 1px solid #262626;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
+}
+
+.notif-filter-btn {
+    background: #181b22;
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid #262626;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 4px 14px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.notif-filter-btn:hover {
+    background: #262626;
+    color: #ffffff;
+}
+
+.notif-filter-btn.active {
+    background: #ffffff;
+    color: #000000;
+    border-color: #ffffff;
+}
+
+.notification-item {
+    transition: background 0.15s ease;
+}
+
+.notification-item:hover {
+    background: #121212;
+}
+
+.notif-avatar, .notif-avatar-placeholder {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #ffffff;
+    background: var(--story-gradient);
+}
+
+.notif-type-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #ffffff;
+    border: 2px solid #000000;
+}
+
+.notif-badge-like { background: #FF2E93; }
+.notif-badge-comment { background: #0095f6; }
+.notif-badge-follow { background: #a855f7; }
+.notif-badge-message { background: #10b981; }
+
+.hover-underline:hover {
+    text-decoration: underline !important;
+}
+
+.notif-media-preview {
+    transition: transform 0.15s ease;
+}
+
+.notif-media-preview:hover {
+    transform: scale(1.06);
+}
+
+.empty-notif-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 2px solid #262626;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, rgba(255, 46, 147, 0.12) 0%, transparent 70%);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function getCsrf() {
+        const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (input) return input.value;
+        if (typeof window.getCookie === 'function') return window.getCookie('csrftoken');
+        return '';
+    }
+
+    // Client-side Filter Handling
+    const filterButtons = document.querySelectorAll('.notif-filter-btn');
+    const notifItems = document.querySelectorAll('.notification-item');
+    const emptyPlaceholder = document.getElementById('filterEmptyPlaceholder');
+    const emptyTitle = document.getElementById('filterEmptyTitle');
+    const emptyDesc = document.getElementById('filterEmptyDesc');
+
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            filterButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const filter = this.getAttribute('data-filter');
+            let visibleCount = 0;
+
+            notifItems.forEach(item => {
+                const itemType = item.getAttribute('data-type');
+                if (filter === 'all' || itemType === filter) {
+                    item.classList.remove('d-none');
+                    item.classList.add('d-flex');
+                    visibleCount++;
+                } else {
+                    item.classList.remove('d-flex');
+                    item.classList.add('d-none');
+                }
+            });
+
+            if (emptyPlaceholder) {
+                if (visibleCount === 0 && notifItems.length > 0) {
+                    emptyPlaceholder.classList.remove('d-none');
+                    if (filter === 'comment') {
+                        emptyTitle.textContent = 'No Comments Yet';
+                        emptyDesc.textContent = 'When someone comments on your posts, you will see their remarks here.';
+                    } else if (filter === 'follow') {
+                        emptyTitle.textContent = 'No Follows Yet';
+                        emptyDesc.textContent = 'When people follow your profile, they will appear here.';
+                    } else {
+                        emptyTitle.textContent = 'No Activity';
+                        emptyDesc.textContent = 'There is no activity in this category yet.';
+                    }
+                } else {
+                    emptyPlaceholder.classList.add('d-none');
+                }
+            }
+        });
+    });
+
+    // AJAX Follow / Unfollow Handlers in Notifications
+    document.querySelectorAll('.follow-notif-ajax-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button');
+            const url = this.getAttribute('action');
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCsrf()
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.following) {
+                    btn.className = 'btn btn-sm btn-outline-custom rounded-2 px-3 py-1 fw-semibold';
+                    btn.style.background = '#262626';
+                    btn.style.borderColor = '#363636';
+                    btn.textContent = 'Following';
+                } else {
+                    btn.className = 'btn btn-sm btn-grad rounded-2 px-3 py-1 fw-semibold';
+                    btn.style.background = '';
+                    btn.style.borderColor = '';
+                    btn.textContent = 'Follow';
+                }
+            })
+            .catch(err => console.error("Follow action error:", err));
+        });
+    });
+});
+</script>
+{% endblock %}
