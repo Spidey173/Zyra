@@ -1,0 +1,389 @@
+import json
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.views.decorators.http import require_POST, require_GET
+from django.core.exceptions import ValidationError, PermissionDenied
+from django.db.models import Q
+from ..models import Conversation, ConversationParticipant, Message, Post
+from ..services.messaging import (
+    get_or_create_direct_conversation,
+    send_message,
+    get_conversation_messages,
+    mark_conversation_read,
+    hide_conversation,
+    unsend_message,
+    edit_message,
+    toggle_reaction,
+    get_user_conversations,
+    update_conversation_theme,
+)
+from ..serializers import (
+    serialize_user,
+    serialize_message,
+    serialize_conversation,
+    serialize_post_preview
+)
+from ..utils.rate_limit import rate_limit
+
+@login_required
+def direct_inbox(request, username=None):
+    """
+    Main Instagram Direct inbox interface.
+    - If username is provided, opens/creates direct conversation with that user.
+    - Renders dual-column view: Conversations on left, active chat on right.
+    """
+    conversations = get_user_conversations(request.user)
+    active_conversation = None
+    initial_partner = None
+
+    if username:
+        if username == request.user.username:
+            # Cannot direct message yourself
+            return redirect('direct_inbox')
+        target_user = get_object_or_404(User, username=username)
+        try:
+            active_conversation, _ = get_or_create_direct_conversation(request.user, target_user)
+            initial_partner = target_user
+        except ValidationError:
+            return redirect('direct_inbox')
+    elif conversations:
+        # Default to first conversation if available
+        active_conversation = conversations[0]
+        initial_partner = active_conversation.get_partner(request.user)
+
+    initial_messages = []
+    if active_conversation:
+        try:
+            raw_msgs = get_conversation_messages(active_conversation, request.user)
+            initial_messages = [serialize_message(m, request.user) for m in raw_msgs]
+            mark_conversation_read(active_conversation, request.user)
+        except PermissionDenied:
+            active_conversation = None
+
+    # Serialized conversations list for instant frontend hydration
+    conversations_data = [serialize_conversation(c, request.user) for c in conversations]
+
+    context = {
+        'conversations': conversations,
+        'conversations_data': conversations_data,
+        'conversations_json': json.dumps(conversations_data).replace('<', '\\u003c'),
+        'active_conversation': active_conversation,
+        'active_partner': initial_partner,
+        'is_direct_chat': bool(username),
+        'initial_messages': initial_messages,
+        'initial_messages_json': json.dumps(initial_messages).replace('<', '\\u003c'),
+    }
+    return render(request, 'core/direct.html', context)
+
+
+@login_required
+@require_POST
+@rate_limit('send_dm', limit=60, period=60, is_json=True)
+def send_message_api(request, conversation_id):
+    """AJAX endpoint to send a message (text, image, voice_note, shared post, or reply)."""
+    content = request.POST.get('content', '')
+    image = request.FILES.get('image')
+    voice_note = request.FILES.get('voice_note')
+    post_id = request.POST.get('post_id')
+    reply_to_id = request.POST.get('reply_to_id')
+
+    try:
+        msg = send_message(
+            sender=request.user,
+            conversation_id=conversation_id,
+            content=content,
+            image=image,
+            voice_note=voice_note,
+            post_id=post_id,
+            reply_to_id=reply_to_id
+        )
+        serialized_msg = serialize_message(msg, request.user)
+
+        # Broadcast real-time event to channel layer subscribers
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f"chat_{conversation_id}",
+                    {
+                        "type": "chat_message",
+                        "message": serialized_msg,
+                    }
+                )
+        except Exception:
+            pass
+
+        return JsonResponse({
+            'success': True,
+            'message': serialized_msg
+        })
+    except PermissionDenied as e:
+        return HttpResponseForbidden(str(e))
+    except ValidationError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': 'Failed to send message.'}, status=500)
+
+
+@login_required
+@require_GET
+def get_messages_api(request, conversation_id):
+    """
+    Incremental polling or complete messages endpoint.
+    - ?since_id=<id>: Returns only new messages received after since_id.
+    - ?before_id=<id>: Returns older messages.
+    - default: Returns all messages for the conversation.
+    """
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    since_id = request.GET.get('since_id')
+    before_id = request.GET.get('before_id')
+    limit_param = request.GET.get('limit')
+    limit = None
+    if limit_param:
+        try:
+            limit = max(1, min(100, int(limit_param)))
+        except (ValueError, TypeError):
+            limit = 50
+
+    try:
+        messages = get_conversation_messages(
+            conversation=conversation,
+            user=request.user,
+            before_id=before_id,
+            since_id=since_id,
+            limit=limit
+        )
+
+        if messages:
+            mark_conversation_read(conversation, request.user)
+
+        serialized = [serialize_message(m, request.user) for m in messages]
+        return JsonResponse({
+            'success': True,
+            'messages': serialized,
+            'count': len(serialized)
+        })
+    except PermissionDenied as e:
+        return HttpResponseForbidden(str(e))
+
+
+@login_required
+@require_POST
+def mark_as_read_api(request, conversation_id):
+    """Marks conversation as read."""
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    updated_count = mark_conversation_read(conversation, request.user)
+    return JsonResponse({'success': True, 'marked_read': updated_count})
+
+
+@login_required
+@require_GET
+def search_users_for_dm(request):
+    """Searches users by username or name to start a new direct conversation or share content."""
+    query = request.GET.get('q', '').strip()
+    if query:
+        users = list(User.objects.filter(
+            Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query)
+        ).exclude(id=request.user.id).select_related('profile')[:15])
+    else:
+        # Default: Return existing conversation partners or followed users
+        participated_convs = ConversationParticipant.objects.filter(
+            user=request.user, hidden_at__isnull=True
+        ).values_list('conversation_id', flat=True)
+        
+        partner_ids = list(ConversationParticipant.objects.filter(
+            conversation_id__in=participated_convs
+        ).exclude(user=request.user).values_list('user_id', flat=True)[:10])
+
+        users = list(User.objects.filter(id__in=partner_ids).select_related('profile'))
+        
+        if len(users) < 8:
+            exclude_ids = set(partner_ids + [request.user.id])
+            extra_users = list(User.objects.exclude(id__in=exclude_ids).select_related('profile')[:8 - len(users)])
+            users.extend(extra_users)
+
+    return JsonResponse({
+        'users': [serialize_user(u) for u in users]
+    })
+
+
+@login_required
+@require_POST
+@rate_limit('share_dm', limit=30, period=60, is_json=True)
+def share_post_to_dm(request):
+    """Shares a post or reel into direct message with a specific user."""
+    target_username = request.POST.get('username') or request.POST.get('target_username')
+    post_id = request.POST.get('post_id')
+    optional_note = request.POST.get('note') or request.POST.get('message', '')
+
+    # Support JSON request payloads
+    if not target_username or not post_id:
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+            target_username = target_username or body.get('username') or body.get('target_username')
+            post_id = post_id or body.get('post_id')
+            optional_note = optional_note or body.get('note') or body.get('message', '')
+        except Exception:
+            pass
+
+    if not target_username or not post_id:
+        return JsonResponse({'success': False, 'error': 'Target username and post_id are required.'}, status=400)
+
+    target_user = get_object_or_404(User, username=target_username)
+    post = get_object_or_404(Post, id=post_id)
+
+    try:
+        conv, _ = get_or_create_direct_conversation(request.user, target_user)
+        msg = send_message(
+            sender=request.user,
+            conversation_id=conv.id,
+            content=optional_note,
+            post_id=post.id
+        )
+        serialized_msg = serialize_message(msg, request.user)
+
+        # Broadcast real-time event to channel layer subscribers
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f"chat_{conv.id}",
+                    {
+                        "type": "chat_message",
+                        "message": serialized_msg,
+                    }
+                )
+        except Exception:
+            pass
+
+        return JsonResponse({
+            'success': True,
+            'conversation_id': conv.id,
+            'message': serialized_msg
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def unsend_message_api(request, message_id):
+    """Soft-deletes a message created by current user."""
+    try:
+        unsend_message(message_id, request.user)
+        return JsonResponse({'success': True})
+    except PermissionDenied as e:
+        return HttpResponseForbidden(str(e))
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'Message not found.'}, status=404)
+
+
+@login_required
+@require_POST
+def hide_conversation_api(request, conversation_id):
+    """Hides conversation from current user's inbox list."""
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    hide_conversation(conversation, request.user)
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+@rate_limit('edit_msg', limit=30, period=60, is_json=True)
+def edit_message_api(request, message_id):
+    """Edits message content (strictly within 5 minutes of creation)."""
+    new_content = request.POST.get('content', '').strip()
+    if not new_content:
+        return JsonResponse({'success': False, 'error': 'Message content cannot be empty.'}, status=400)
+
+    try:
+        msg = edit_message(message_id, request.user, new_content)
+        return JsonResponse({
+            'success': True,
+            'message': serialize_message(msg, request.user)
+        })
+    except PermissionDenied as e:
+        return HttpResponseForbidden(str(e))
+    except ValidationError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': 'Failed to edit message.'}, status=500)
+
+
+@login_required
+@require_POST
+@rate_limit('react_msg', limit=60, period=60, is_json=True)
+def react_message_api(request, message_id):
+    """Toggles or updates an emoji reaction on a message."""
+    emoji = request.POST.get('emoji', '').strip()
+    if not emoji:
+        return JsonResponse({'success': False, 'error': 'Emoji is required.'}, status=400)
+
+    try:
+        msg = toggle_reaction(message_id, request.user, emoji)
+        return JsonResponse({
+            'success': True,
+            'message': serialize_message(msg, request.user)
+        })
+    except PermissionDenied as e:
+        return HttpResponseForbidden(str(e))
+    except ValidationError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': 'Failed to react to message.'}, status=500)
+
+
+@login_required
+@require_POST
+@rate_limit('theme', limit=15, period=60, is_json=True)
+def set_conversation_theme_api(request, conversation_id):
+    """
+    Updates the shared theme of a conversation (preset template or custom uploaded wallpaper).
+    Broadcasts change in real-time over Channels WebSocket to both participants.
+    """
+    theme_key = request.POST.get('theme_key', 'default').strip()
+    custom_image = request.FILES.get('custom_theme_image')
+
+    try:
+        conv = update_conversation_theme(
+            conversation_id=conversation_id,
+            user=request.user,
+            theme_key=theme_key,
+            custom_image=custom_image
+        )
+
+        # Broadcast theme change over WebSockets
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f"chat_{conversation_id}",
+                    {
+                        'type': 'chat_theme_change',
+                        'theme_key': conv.theme_key,
+                        'custom_theme_image_url': conv.get_custom_theme_image_url,
+                        'changed_by': request.user.username,
+                    }
+                )
+        except Exception:
+            pass
+
+        return JsonResponse({
+            'success': True,
+            'theme_key': conv.theme_key,
+            'custom_theme_image_url': conv.get_custom_theme_image_url,
+        })
+    except PermissionDenied as e:
+        return HttpResponseForbidden(str(e))
+    except ValidationError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': 'Failed to update theme.'}, status=500)
