@@ -1,15 +1,16 @@
 """
-Django settings for Zyra project.
+Base settings for Zyra project.
+Shared configuration inherited by dev and prod environments.
 """
 
 from pathlib import Path
 import os
 import dj_database_url
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# BASE_DIR is 3 levels up: config/settings/base.py -> config/settings -> config -> BASE_DIR
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Load environment variables from .env if present
+# Load environment variables from .env file if present
 _env_path = BASE_DIR / '.env'
 if _env_path.exists():
     try:
@@ -38,50 +39,8 @@ if _env_path.exists():
 # Application Branding
 APP_NAME = os.environ.get('APP_NAME', 'Zyra')
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-k8=@=2to@w1o4sp!jaqt)bs5(o%$%xbprl0f@5%9q%253xg087')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-
-_allowed = os.environ.get('ALLOWED_HOSTS')
-if _allowed:
-    ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
-else:
-    ALLOWED_HOSTS = ['*']
-
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = True
-USE_X_FORWARDED_PORT = True
-
-CSRF_TRUSTED_ORIGINS = [
-    'https://*.vercel.app',
-    'https://zyra17.vercel.app',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-]
-_extra_csrf = os.environ.get('CSRF_TRUSTED_ORIGINS')
-if _extra_csrf:
-    CSRF_TRUSTED_ORIGINS.extend([origin.strip() for origin in _extra_csrf.split(',') if origin.strip()])
-
-
-# Safari & Modern Browser Cookie & Transport Security
-if not DEBUG:
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-else:
-    CSRF_COOKIE_SECURE = False
-    SESSION_COOKIE_SECURE = False
-
-CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_HTTPONLY = False
+# Default DEBUG is False for security
+DEBUG = False
 
 # Application definition
 INSTALLED_APPS = [
@@ -136,33 +95,7 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-# Channel Layers for WebSockets
-# Require REDIS_URL in production (channels_redis); InMemoryChannelLayer allowed only when DEBUG=True
-REDIS_URL = os.environ.get('REDIS_URL') or os.environ.get('REDIS_TLS_URL')
-if REDIS_URL:
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [REDIS_URL],
-            },
-        },
-    }
-elif DEBUG:
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels.layers.InMemoryChannelLayer"
-        }
-    }
-else:
-    from django.core.exceptions import ImproperlyConfigured
-    raise ImproperlyConfigured(
-        "REDIS_URL environment variable is required in production for channels_redis. "
-        "InMemoryChannelLayer is only allowed when DEBUG=True."
-    )
-
-# Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+# Database configuration
 DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
@@ -200,7 +133,18 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 WHITENOISE_MAX_AGE = 31536000
 
-# Cloudinary Configuration (25GB Free Cloud Storage for Reels, Posts, Stories, Avatars, Media)
+# Media Files Storage
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'landing'
+
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Cloudinary Storage Configuration
 CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
 if CLOUDINARY_URL and 'cloudinary://' in CLOUDINARY_URL:
     try:
@@ -217,18 +161,7 @@ CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
 CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY', '')
 CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET', '')
 
-# Media Files Storage
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'home'
-LOGOUT_REDIRECT_URL = 'landing'
-
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# S3 / Cloudflare R2 / Object Storage Configuration (via django-storages)
+# S3 / Cloudflare R2 Storage Configuration (via django-storages)
 USE_S3 = os.environ.get('USE_S3', 'False').lower() in ('true', '1', 'yes') or bool(os.environ.get('AWS_STORAGE_BUCKET_NAME'))
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')

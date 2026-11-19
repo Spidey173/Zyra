@@ -30,3 +30,4 @@ databases:
 
   - name: zyra-redis
     plan: starter
+

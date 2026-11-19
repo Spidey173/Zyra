@@ -290,4 +290,90 @@ class DirectMessagingTests(TestCase):
 
         async_to_sync(_run_tests)()
 
+    def test_phase3_split_settings_structure(self):
+        import importlib
+        base_settings = importlib.import_module('config.settings.base')
+        dev_settings = importlib.import_module('config.settings.dev')
+        self.assertFalse(base_settings.DEBUG)
+        self.assertTrue(dev_settings.DEBUG)
+        self.assertNotIn('*', dev_settings.ALLOWED_HOSTS)
+
+    def test_phase3_production_secret_key_crash_when_missing(self):
+        import subprocess
+        import sys
+        
+        # Test missing SECRET_KEY crashes with ImproperlyConfigured
+        cmd = [
+            sys.executable, "-c",
+            "import os; os.environ.pop('SECRET_KEY', None); "
+            "import config.settings.prod"
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("ImproperlyConfigured", res.stderr)
+        self.assertIn("SECRET_KEY", res.stderr)
+
+    def test_phase3_production_allowed_hosts_no_wildcard(self):
+        import subprocess
+        import sys
+
+        # Test wildcard '*' in ALLOWED_HOSTS is rejected
+        cmd = [
+            sys.executable, "-c",
+            "import os; os.environ['SECRET_KEY'] = 'strong-prod-key-1234567890'; "
+            "os.environ['ALLOWED_HOSTS'] = '*'; "
+            "import config.settings.prod"
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("ImproperlyConfigured", res.stderr)
+        self.assertIn("ALLOWED_HOSTS", res.stderr)
+
+    def test_phase3_production_security_flags(self):
+        import subprocess
+        import sys
+        import json
+
+        # Test production security settings with valid required env vars
+        cmd = [
+            sys.executable, "-c",
+            "import os, json; "
+            "os.environ['SECRET_KEY'] = 'strong-prod-key-1234567890'; "
+            "os.environ['ALLOWED_HOSTS'] = 'zyra.app,api.zyra.app'; "
+            "os.environ['REDIS_URL'] = 'redis://localhost:6379/0'; "
+            "from config.settings import prod; "
+            "out = {"
+            "'DEBUG': prod.DEBUG, "
+            "'SESSION_COOKIE_SECURE': prod.SESSION_COOKIE_SECURE, "
+            "'CSRF_COOKIE_SECURE': prod.CSRF_COOKIE_SECURE, "
+            "'SECURE_BROWSER_XSS_FILTER': prod.SECURE_BROWSER_XSS_FILTER, "
+            "'SECURE_CONTENT_TYPE_NOSNIFF': prod.SECURE_CONTENT_TYPE_NOSNIFF, "
+            "'X_FRAME_OPTIONS': prod.X_FRAME_OPTIONS, "
+            "'SECURE_HSTS_SECONDS': prod.SECURE_HSTS_SECONDS"
+            "}; print(json.dumps(out))"
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, f"Prod settings failed to load: {res.stderr}")
+        data = json.loads(res.stdout.strip())
+        self.assertFalse(data['DEBUG'])
+        self.assertTrue(data['SESSION_COOKIE_SECURE'])
+        self.assertTrue(data['CSRF_COOKIE_SECURE'])
+        self.assertTrue(data['SECURE_BROWSER_XSS_FILTER'])
+        self.assertTrue(data['SECURE_CONTENT_TYPE_NOSNIFF'])
+        self.assertEqual(data['X_FRAME_OPTIONS'], 'DENY')
+        self.assertEqual(data['SECURE_HSTS_SECONDS'], 31536000)
+
+    def test_phase3_env_example_template(self):
+        from django.conf import settings
+        example_path = settings.BASE_DIR / '.env.example'
+        self.assertTrue(example_path.exists())
+        content = example_path.read_text(encoding='utf-8')
+        self.assertIn('SECRET_KEY', content)
+        self.assertIn('ALLOWED_HOSTS', content)
+        self.assertIn('REDIS_URL', content)
+        self.assertIn('SECURE_SSL_REDIRECT', content)
+        self.assertNotIn('549768947857682', content)
+        self.assertNotIn('R2dzLnaTB_gIbCVcWF9ptUIVZN8', content)
+
+
 
