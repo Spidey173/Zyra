@@ -1,6 +1,6 @@
 import os
 import tempfile
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -16,6 +16,10 @@ from core.services.messaging import (
 from core.serializers import serialize_message, serialize_conversation, serialize_user
 from core.utils.media import generate_upload_path, validate_media_file
 
+@override_settings(
+    CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+)
 class DirectMessagingTests(TestCase):
     def setUp(self):
         self.user_a = User.objects.create_user(username='alice', password='password123')

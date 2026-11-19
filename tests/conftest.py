@@ -47,3 +47,18 @@ def sample_image():
 @pytest.fixture
 def sample_video():
     return SimpleUploadedFile("test_clip.mp4", b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom", content_type="video/mp4")
+
+@pytest.fixture(autouse=True)
+def configure_test_settings(settings):
+    """Ensure tests always use fast in-memory caching and channel layers."""
+    settings.CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'zyra-test-cache',
+        }
+    }
+    settings.CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    }

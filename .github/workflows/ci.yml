@@ -11,17 +11,6 @@ jobs:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
 
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     strategy:
       fail-fast: false
       matrix:
@@ -32,7 +21,6 @@ jobs:
       DEBUG: "True"
       SECRET_KEY: "ci-test-secret-key-32-chars-long-minimum-zyra"
       ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
-      REDIS_URL: "redis://localhost:6379/0"
       DEFAULT_STORAGE_BACKEND: "django.core.files.storage.FileSystemStorage"
 
     steps:
