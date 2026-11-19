@@ -202,6 +202,17 @@ export function searchShareUsers(query) {
         });
 }
 
+// Expose helpers on window immediately upon script evaluation
+if (typeof window !== 'undefined') {
+    window.getCookie = getCookie;
+    window.escapeHtml = escapeHtml;
+    window.showConfirmPopup = showConfirmPopup;
+    window.showToast = showToast;
+    window.toggleCreateModal = toggleCreateModal;
+    window.toggleStoryModal = toggleStoryModal;
+    window.openSharePostModal = openSharePostModal;
+}
+
 export function initBase() {
     // Expose helpers globally for legacy template handlers
     window.getCookie = getCookie;

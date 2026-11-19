@@ -173,10 +173,12 @@ export function initDirect() {
 
         try {
             chatSocket = new WebSocket(wsUrl);
+            window.zyraChatSocket = chatSocket;
 
             chatSocket.onopen = function() {
                 isSocketOpen = true;
                 wsRetryCount = 0;
+                console.log("WebSocket opened successfully:", wsUrl);
                 const statusBadge = document.getElementById('wsLiveStatus');
                 if (statusBadge) statusBadge.classList.remove('d-none');
 
@@ -1614,6 +1616,7 @@ export function initDirect() {
         themeClasses.forEach(c => chatWindow.classList.remove(c));
 
         chatWindow.classList.add(`theme-${themeKey}`);
+        chatWindow.dataset.theme = themeKey;
         currentThemeKey = themeKey;
 
         if (themeKey === 'custom' && customImageUrl) {
