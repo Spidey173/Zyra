@@ -248,3 +248,4 @@ if (document.readyState === 'loading') {
 } else {
     initBase();
 }
+
