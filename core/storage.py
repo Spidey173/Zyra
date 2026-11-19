@@ -27,13 +27,13 @@ class CloudinaryMediaStorage(Storage):
         self.api_key = getattr(settings, 'CLOUDINARY_API_KEY', '') or os.environ.get('CLOUDINARY_API_KEY', '')
         self.api_secret = getattr(settings, 'CLOUDINARY_API_SECRET', '') or os.environ.get('CLOUDINARY_API_SECRET', '')
         
-        if self.cloud_name and self.api_key and self.api_secret:
-            cloudinary.config(
-                cloud_name=self.cloud_name,
-                api_key=self.api_key,
-                api_secret=self.api_secret,
-                secure=True
-            )
+        c_name = self.cloud_name or 'zyra-cloud'
+        cloudinary.config(
+            cloud_name=c_name,
+            api_key=self.api_key or 'test_key',
+            api_secret=self.api_secret or 'test_secret',
+            secure=True
+        )
 
     def _save(self, name, content):
         content.seek(0)

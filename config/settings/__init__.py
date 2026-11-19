@@ -36,10 +36,15 @@ if _env_path.exists():
 # Determine environment mode:
 # 'production' / 'prod': Loads strict production settings
 # 'development' / 'dev' / 'local': Loads development settings
+import sys
+
 env_mode = os.environ.get('DJANGO_ENV', '').lower().strip()
 debug_mode = os.environ.get('DEBUG', 'False').lower().strip() in ('true', '1', 'yes')
+is_testing = 'pytest' in sys.modules or any('pytest' in arg for arg in sys.argv) or 'test' in sys.argv or env_mode in ('test', 'testing', 'dev', 'development', 'local')
 
-if env_mode in ('prod', 'production') or (not env_mode and not debug_mode):
+if is_testing:
+    from .dev import *
+elif env_mode in ('prod', 'production') or (not env_mode and not debug_mode):
     from .prod import *
 else:
     from .dev import *
