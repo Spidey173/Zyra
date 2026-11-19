@@ -68,3 +68,4 @@ def test_stories_rendered_on_feed(auth_client_a, user_a):
     response = auth_client_a.get(reverse('home'))
     assert response.status_code == 200
     assert len(response.context['story_users']) >= 1
+

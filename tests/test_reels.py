@@ -57,3 +57,4 @@ def test_reel_validation_oversized():
     with pytest.raises(ValidationError) as exc:
         validate_media_file(huge_file, media_types=('video',), max_size_mb=50)
     assert "exceeds maximum allowed limit" in str(exc.value)
+
