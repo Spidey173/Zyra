@@ -1,0 +1,174 @@
+{% extends 'core/base.html' %}
+{% block title %}Login • {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="aurora-ambient-wrap d-flex align-items-center py-4 py-lg-5">
+    <!-- Ambient Animated Aurora Mesh Background Orbs -->
+    <div class="aurora-mesh-orb aurora-mesh-orb-1"></div>
+    <div class="aurora-mesh-orb aurora-mesh-orb-2"></div>
+    <div class="aurora-mesh-orb aurora-mesh-orb-3"></div>
+
+    <div class="position-relative z-1 w-100 px-3 px-md-4 px-lg-5" style="max-width: 1360px; margin: 0 auto;">
+        <div class="row align-items-center justify-content-between g-4 g-xl-5">
+            
+            <!-- Left Column: High-Impact Visual Graphic & Brand Typography -->
+            <div class="col-lg-6">
+                <div class="pe-xl-4">
+                    
+                    <!-- Feature Tag Pill -->
+                    <div class="d-inline-flex align-items-center gap-2 px-3 py-1 mb-4 rounded-pill" style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.28); backdrop-filter: blur(12px);">
+                        <span class="d-inline-block rounded-circle" style="width: 8px; height: 8px; background: var(--brand-accent); box-shadow: 0 0 10px var(--brand-accent);"></span>
+                        <span class="small fw-bold text-uppercase" style="letter-spacing: 0.08em; font-size: 0.75rem; color: #C4B5FD;">Next-Gen Social Architecture</span>
+                    </div>
+
+                    <!-- Display Headline in Space Grotesk -->
+                    <h1 class="display-3 text-white mb-4 fw-800" style="font-family: var(--font-heading); letter-spacing: -0.04em; line-height: 1.08;">
+                        Connect & share in <br>
+                        <span style="background: var(--brand-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 35px rgba(139, 92, 246, 0.3);">Real-Time</span>
+                    </h1>
+
+                    <!-- Editorial Subtitle -->
+                    <p class="text-white-50 fs-5 mb-4" style="max-width: 500px; line-height: 1.6; font-weight: 400;">
+                        Step beyond clones. Experience 60fps vertical reels, audio-synced 24h stories, and zero-latency direct messaging in a bespoke obsidian aesthetic.
+                    </p>
+
+                    <!-- Feature Capabilities List -->
+                    <div class="d-flex flex-wrap gap-2 pt-2">
+                        <span class="auth-feature-pill">
+                            <i class="bi bi-play-btn-fill text-info"></i> 60fps Fluid Reels
+                        </span>
+                        <span class="auth-feature-pill">
+                            <i class="bi bi-fire text-warning"></i> 24h Synced Stories
+                        </span>
+                        <span class="auth-feature-pill">
+                            <i class="bi bi-shield-check text-success"></i> Encrypted Direct
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Floating Glass Auth Card with Subtle Parallax -->
+            <div class="col-lg-5 col-xl-5 col-md-9 mx-auto mx-lg-0">
+                <div class="auth-card-container" id="loginCardContainer">
+                    <div class="auth-glass-card" id="loginCard">
+                        
+                        <!-- Header -->
+                        <div class="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom border-dark">
+                            <div>
+                                <h2 class="text-white fw-bold mb-1" style="font-family: var(--font-heading); font-size: 1.85rem; letter-spacing: -0.03em;">Welcome Back</h2>
+                                <p class="text-white-50 small mb-0">Sign in to your {{ APP_NAME }} account</p>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-center rounded-circle" style="width: 44px; height: 44px; background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.25); color: var(--brand-accent);">
+                                <i class="bi bi-stars fs-5"></i>
+                            </div>
+                        </div>
+
+                        <!-- Login Form -->
+                        <form method="POST" action="{% url 'login' %}">
+                            {% csrf_token %}
+                            
+                            <!-- Username Input -->
+                            <div class="mb-3">
+                                <label for="username" class="form-label text-white-50 small fw-semibold">Username</label>
+                                <div class="auth-input-group">
+                                    <input type="text" name="username" id="username" class="form-control auth-input" placeholder="Enter your username" required autofocus autocomplete="username">
+                                    <i class="bi bi-person auth-input-icon"></i>
+                                </div>
+                            </div>
+
+                            <!-- Password Input -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="password" class="form-label text-white-50 small fw-semibold mb-0">Password</label>
+                                </div>
+                                <div class="auth-input-group position-relative">
+                                    <input type="password" name="password" id="password" class="form-control auth-input pe-5" placeholder="Enter your password" required autocomplete="current-password">
+                                    <i class="bi bi-lock auth-input-icon"></i>
+                                    <button class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-secondary text-decoration-none pe-3 border-0 bg-transparent" type="button" id="togglePasswordBtn" aria-label="Toggle password visibility">
+                                        <i class="bi bi-eye fs-6" id="togglePasswordIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Primary Sign In Button -->
+                            <button type="submit" class="btn btn-grad w-100 py-3 fw-bold d-flex align-items-center justify-content-center gap-2 mb-3" style="border-radius: var(--radius-md); font-size: 1rem;">
+                                <span>Sign In</span>
+                                <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </form>
+
+                        <!-- 1-Click Demo Login Button (Guaranteed functionality) -->
+                        <div class="mb-4">
+                            <button type="button" class="auth-demo-btn" onclick="fillDemo('ash', 'Password123!')" title="1-Click Instant Login">
+                                <i class="bi bi-lightning-charge-fill text-warning fs-6"></i>
+                                <span>1-Click Demo Login (ash)</span>
+                            </button>
+                        </div>
+
+                        <!-- Footer Navigation -->
+                        <div class="text-center pt-2 border-top border-dark">
+                            <span class="text-secondary small">Don't have an account yet?</span>
+                            <a href="{% url 'register' %}" class="fw-bold text-decoration-none small ms-1" style="color: var(--brand-accent);">Create Account</a>
+                        </div>
+
+                        <div class="text-center text-white-50 mt-3" style="font-size: 0.72rem; line-height: 1.5;">
+                            By signing in, you agree to {{ APP_NAME }}'s Terms and Privacy Guidelines.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+// 1-Click Demo Login Handler
+function fillDemo(username, password) {
+    const userField = document.getElementById('username');
+    const passField = document.getElementById('password');
+    if (userField && passField) {
+        userField.value = username;
+        passField.value = password;
+        const form = document.querySelector('form');
+        if (form) form.submit();
+    }
+}
+
+// Password Visibility Toggle
+const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+const passwordInput = document.getElementById('password');
+const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+
+if (togglePasswordBtn && passwordInput) {
+    togglePasswordBtn.addEventListener('click', function() {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        if (togglePasswordIcon) {
+            togglePasswordIcon.className = isPassword ? 'bi bi-eye-slash fs-6' : 'bi bi-eye fs-6';
+        }
+    });
+}
+
+// Subtle Floating Parallax on Desktop
+(function() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const container = document.getElementById('loginCardContainer');
+    const card = document.getElementById('loginCard');
+    if (!container || !card || window.innerWidth < 992) return;
+
+    container.addEventListener('mousemove', function(e) {
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        const rotateX = (-y / rect.height) * 8;
+        const rotateY = (x / rect.width) * 8;
+        card.style.transform = `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-4px)`;
+    });
+
+    container.addEventListener('mouseleave', function() {
+        card.style.transform = 'rotateX(0deg) rotateY(0deg) translateY(0)';
+    });
+})();
+</script>
+{% endblock %}

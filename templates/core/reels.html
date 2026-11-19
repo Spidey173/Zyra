@@ -1,0 +1,288 @@
+{% extends 'core/base.html' %}
+{% block title %}Reels • {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="reels-wrapper">
+    <div class="reels-container" id="reelsContainer">
+        {% for post in posts %}
+            <div class="reel-item" data-post-id="{{ post.id }}">
+                <!-- Modern Cinema Frame -->
+                <div class="reel-card">
+                    
+                    <!-- Main Video Stage -->
+                    <div class="reel-video-wrapper">
+                        <video src="{{ post.get_video_url }}" class="reel-video" style="cursor: pointer;" loop playsinline preload="metadata" muted autoplay></video>
+                        
+                        <!-- Double tap heart burst -->
+                        <i class="bi bi-heart-fill double-tap-heart"></i>
+
+                        <!-- Top Bar with Tag Badge -->
+                        <div class="reel-top-bar">
+                            <span class="reel-badge d-flex align-items-center gap-1">
+                                <i class="bi bi-play-fill text-cyan"></i>
+                                <span>REEL</span>
+                            </span>
+                        </div>
+
+                        <!-- Bottom Creator Info Overlay -->
+                        <div class="reel-creator-overlay">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <a href="{% url 'user_profile' username=post.user.username %}" class="reel-user-pill text-decoration-none">
+                                    {% if post.user.profile.get_profile_pic_url %}
+                                        <img src="{{ post.user.profile.get_profile_pic_url }}" alt="Avatar" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover; border: 1.5px solid var(--brand-accent);">
+                                    {% else %}
+                                        <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem; background: var(--story-gradient);">
+                                            {{ post.user.username|slice:":1"|upper }}
+                                        </div>
+                                    {% endif %}
+                                    <span class="fw-bold text-white small" style="font-family: var(--font-heading);">{{ post.user.username }}</span>
+                                </a>
+                                
+                                {% if request.user != post.user %}
+                                    <form method="POST" action="{% url 'follow_user' username=post.user.username %}" class="follow-ajax-form m-0 d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm reel-follow-btn">
+                                            {% if post.user.is_followed_by_user %}Following{% else %}Follow{% endif %}
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+
+                            {% if post.caption %}
+                                <p class="reel-caption">{{ post.caption }}</p>
+                            {% endif %}
+
+                            <!-- Bottom Sound Bar with Music Ticker & Audio Toggle -->
+                            <div class="d-flex align-items-center justify-content-between gap-2 mt-2">
+                                <div class="reel-music-ticker" style="max-width: calc(100% - 46px);">
+                                    <i class="bi bi-disc text-cyan"></i>
+                                    <span class="text-truncate">Original Audio • {{ post.user.username }}</span>
+                                </div>
+                                <button type="button" class="video-audio-toggle reel-audio-toggle" title="Toggle audio" aria-label="Toggle audio">
+                                    <i class="bi bi-volume-mute-fill fs-6 text-white"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side Vertical Glass Action Rail -->
+                <div class="reel-sidebar-actions">
+                    <!-- Like Action -->
+                    <form method="POST" action="{% url 'like_post' post_id=post.id %}" class="like-ajax-form m-0 text-center">
+                        {% csrf_token %}
+                        <button type="submit" class="reel-glass-btn {% if post.is_liked_by_user %}liked{% endif %}" title="Like" aria-label="Like reel">
+                            <i class="bi {% if post.is_liked_by_user %}bi-heart-fill text-danger{% else %}bi-heart text-white{% endif %}"></i>
+                        </button>
+                        <span class="reel-action-count likes-count">{{ post.likes_count }}</span>
+                    </form>
+                    
+                    <!-- Comment Action -->
+                    <div class="text-center">
+                        <a href="{% url 'post_detail' post_id=post.id %}" class="reel-glass-btn" title="Comments" aria-label="Comments">
+                            <i class="bi bi-chat-dots-fill"></i>
+                        </a>
+                        <span class="reel-action-count">{{ post.comments_count }}</span>
+                    </div>
+
+                    <!-- Share to DM -->
+                    <div class="text-center">
+                        <button type="button" class="reel-glass-btn" onclick="openSharePostModal('{{ post.id }}')" title="Share" aria-label="Share">
+                            <i class="bi bi-send-fill"></i>
+                        </button>
+                        <span class="reel-action-count">Share</span>
+                    </div>
+
+                    <!-- Bookmark Action -->
+                    <form method="POST" action="{% url 'toggle_bookmark' post_id=post.id %}" class="bookmark-ajax-form m-0 text-center">
+                        {% csrf_token %}
+                        <button type="submit" class="reel-glass-btn {% if post.is_bookmarked_by_user %}saved{% endif %}" title="Save" aria-label="Save reel">
+                            <i class="bi {% if post.is_bookmarked_by_user %}bi-bookmark-fill text-warning{% else %}bi-bookmark text-white{% endif %}"></i>
+                        </button>
+                    </form>
+
+                    <!-- Spinning Vinyl Record Disc -->
+                    <div class="reel-disc-wrapper" title="Audio Track" aria-label="Audio Track">
+                        <div class="rounded-circle" style="width: 12px; height: 12px; background: var(--brand-accent); border: 2px solid #000; box-shadow: 0 0 8px var(--brand-accent);"></div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="glass-card text-center py-5 px-4 my-auto" style="border-radius: 24px; max-width: 420px;">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 70px; height: 70px; background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3);">
+                    <i class="bi bi-play-btn-fill fs-2" style="color: var(--brand-accent);"></i>
+                </div>
+                <h5 class="text-white fw-bold mb-2" style="font-family: var(--font-heading);">No Reels Broadcasted</h5>
+                <p class="text-secondary small mb-4">Be the pioneer! Share a short vertical video clip with the community.</p>
+                <button type="button" class="btn btn-grad rounded-pill px-4 py-2" onclick="toggleCreateModal(true)">
+                    <i class="bi bi-plus-lg me-1"></i> Create First Reel
+                </button>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let globalMuted = true;
+
+    // AJAX Like Handlers
+    document.querySelectorAll('.like-ajax-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const button = this.querySelector('button');
+            const icon = button ? button.querySelector('i') : null;
+            const item = this.closest('.reel-item');
+            const countSpan = item ? item.querySelector('.likes-count') : null;
+            const url = this.getAttribute('action');
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (countSpan) countSpan.textContent = data.likes_count;
+                if (data.liked) {
+                    if (button) {
+                        button.classList.add('liked');
+                        button.style.transform = 'scale(1.25)';
+                        setTimeout(() => button.style.transform = '', 200);
+                    }
+                    if (icon) icon.className = 'bi bi-heart-fill text-danger';
+                } else {
+                    if (button) button.classList.remove('liked');
+                    if (icon) icon.className = 'bi bi-heart text-white';
+                }
+            });
+        });
+    });
+
+    // AJAX Bookmark Handlers
+    document.querySelectorAll('.bookmark-ajax-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const button = this.querySelector('button');
+            const icon = button ? button.querySelector('i') : null;
+            const url = this.getAttribute('action');
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.bookmarked) {
+                    if (button) {
+                        button.classList.add('saved');
+                        button.style.transform = 'scale(1.2)';
+                        setTimeout(() => button.style.transform = '', 200);
+                    }
+                    if (icon) icon.className = 'bi bi-bookmark-fill text-warning';
+                } else {
+                    if (button) button.classList.remove('saved');
+                    if (icon) icon.className = 'bi bi-bookmark text-white';
+                }
+            });
+        });
+    });
+
+    // Follow AJAX Handler
+    document.querySelectorAll('.follow-ajax-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const button = this.querySelector('button');
+            const url = this.getAttribute('action');
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.following) {
+                    button.textContent = 'Following';
+                    button.classList.remove('reel-follow-btn');
+                    button.className = 'btn btn-sm btn-outline-secondary';
+                } else {
+                    button.textContent = 'Follow';
+                    button.className = 'btn btn-sm reel-follow-btn';
+                }
+            });
+        });
+    });
+
+    // Video Play/Pause & Mute Toggle
+    const videos = document.querySelectorAll('.reel-video');
+    videos.forEach(video => {
+        const item = video.closest('.reel-item');
+        const audioBtn = item ? item.querySelector('.video-audio-toggle') : null;
+        
+        // Click to play/pause
+        video.addEventListener('click', function() {
+            if (video.paused) {
+                video.play().catch(() => {});
+            } else {
+                video.pause();
+            }
+        });
+
+        // Double click to like with particle burst
+        video.addEventListener('dblclick', function(e) {
+            const heart = item ? item.querySelector('.double-tap-heart') : null;
+            const likeForm = item ? item.querySelector('.like-ajax-form') : null;
+            if (heart) {
+                heart.classList.add('animate');
+                setTimeout(() => heart.classList.remove('animate'), 750);
+            }
+            if (likeForm) {
+                const likeBtn = likeForm.querySelector('button');
+                if (likeBtn && !likeBtn.classList.contains('liked')) {
+                    likeBtn.click();
+                }
+            }
+        });
+
+        if (audioBtn) {
+            audioBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                globalMuted = !globalMuted;
+                document.querySelectorAll('.reel-video').forEach(v => {
+                    v.muted = globalMuted;
+                    const icon = v.closest('.reel-item')?.querySelector('.video-audio-toggle i');
+                    if (icon) {
+                        icon.className = globalMuted ? 'bi bi-volume-mute-fill fs-6 text-white' : 'bi bi-volume-up-fill fs-6 text-white';
+                    }
+                });
+            });
+        }
+    });
+
+    // 60fps Autoplay snap logic using IntersectionObserver
+    if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const video = entry.target;
+                if (entry.isIntersecting) {
+                    video.muted = globalMuted;
+                    video.play().catch(err => console.log("Reels autoplay block:", err));
+                } else {
+                    video.pause();
+                }
+            });
+        }, { threshold: 0.6 });
+
+        videos.forEach(video => observer.observe(video));
+    }
+});
+</script>
+{% endblock %}

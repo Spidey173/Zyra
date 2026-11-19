@@ -1,0 +1,85 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ APP_NAME }} • Where Stories, Reels & Live DMs Live{% endblock %}
+
+{% block content %}
+<div class="aurora-ambient-wrap d-flex flex-column align-items-center justify-content-center text-center py-4 py-lg-5">
+    <!-- Ambient Animated Aurora Mesh Background Orbs -->
+    <div class="aurora-mesh-orb aurora-mesh-orb-1"></div>
+    <div class="aurora-mesh-orb aurora-mesh-orb-2"></div>
+    <div class="aurora-mesh-orb aurora-mesh-orb-3"></div>
+
+    <div class="position-relative z-1 py-4 px-3 px-md-4 w-100" style="max-width: 1280px; margin: 0 auto;">
+        <!-- Status Pill -->
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill mb-4"
+            style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.28); backdrop-filter: blur(12px);">
+            <span class="badge rounded-pill" style="background: var(--brand-gradient); font-size: 0.72rem;">ZYRA 2.0</span>
+            <span class="text-white small fw-bold">Live Direct Messaging & 60fps Vertical Reels</span>
+        </div>
+
+        <!-- Big Display Headline in Space Grotesk -->
+        <h1 class="display-2 text-white mb-3 fw-800"
+            style="font-family: var(--font-heading); letter-spacing: -0.04em; line-height: 1.05;">
+            Unlimited stories, reels, <br class="d-none d-md-block">
+            <span style="background: var(--brand-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 40px rgba(139, 92, 246, 0.35);">
+                and real connections.
+            </span>
+        </h1>
+
+        <!-- Short Punchy Subtitle -->
+        <p class="fs-4 text-white-50 mb-4 mx-auto" style="max-width: 640px; font-weight: 400; line-height: 1.5;">
+            Watch seamlessly. Chat with zero latency. Share your universe in an obsidian glass aesthetic designed for modern creators.
+        </p>
+
+        <!-- Primary CTA Buttons -->
+        <div class="d-flex flex-column flex-sm-row justify-content-center align-items-center gap-3 my-4">
+            <a href="{% url 'register' %}"
+                class="btn btn-grad btn-lg px-5 py-3 rounded-pill fw-bold d-flex align-items-center gap-2"
+                style="font-size: 1.1rem; box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5);">
+                <span>Get Started Free</span>
+                <i class="bi bi-arrow-right fs-6"></i>
+            </a>
+            <a href="{% url 'login' %}"
+                class="btn btn-outline-custom btn-lg px-4 py-3 rounded-pill d-flex align-items-center gap-2"
+                style="font-size: 1rem;">
+                <i class="bi bi-lightning-charge-fill text-warning"></i>
+                <span>Try 1-Click Demo</span>
+            </a>
+        </div>
+
+        <!-- 3 Feature Highlights (Bento Preview) -->
+        <div class="row g-3 g-md-4 mt-5 text-start">
+            <div class="col-md-4">
+                <div class="glass-card p-4 h-100" style="border-radius: var(--radius-xl);">
+                    <div class="d-flex align-items-center justify-content-center rounded-3 mb-3" style="width: 44px; height: 44px; background: rgba(6, 182, 212, 0.12); border: 1px solid rgba(6, 182, 212, 0.25); color: var(--brand-accent);">
+                        <i class="bi bi-play-btn-fill fs-4"></i>
+                    </div>
+                    <h5 class="text-white fw-bold mb-2" style="font-family: var(--font-heading);">60fps Vertical Reels</h5>
+                    <p class="text-white-50 small mb-0" style="line-height: 1.5;">Full-height snap scrolling with double-tap burst animations and ambient backdrop lighting.</p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="glass-card p-4 h-100" style="border-radius: var(--radius-xl);">
+                    <div class="d-flex align-items-center justify-content-center rounded-3 mb-3" style="width: 44px; height: 44px; background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.25); color: #A78BFA;">
+                        <i class="bi bi-fire fs-4"></i>
+                    </div>
+                    <h5 class="text-white fw-bold mb-2" style="font-family: var(--font-heading);">24h Audio Stories</h5>
+                    <p class="text-white-50 small mb-0" style="line-height: 1.5;">Broadcast photos and video clips with background MP3 tracks, animated orb rings, and live progress bars.</p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="glass-card p-4 h-100" style="border-radius: var(--radius-xl);">
+                    <div class="d-flex align-items-center justify-content-center rounded-3 mb-3" style="width: 44px; height: 44px; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.25); color: #818CF8;">
+                        <i class="bi bi-send-fill fs-4"></i>
+                    </div>
+                    <h5 class="text-white fw-bold mb-2" style="font-family: var(--font-heading);">Encrypted Direct Chat</h5>
+                    <p class="text-white-50 small mb-0" style="line-height: 1.5;">Real-time messaging, voice notes with waveform scrubbing, emoji reactions, message editing, and custom themes.</p>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-secondary small mt-5 mb-0">Experience the future of social interaction with zero bloat.</p>
+    </div>
+</div>
+{% endblock %}
