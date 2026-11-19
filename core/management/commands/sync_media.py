@@ -1,12 +1,12 @@
 import os
-import mimetypes
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from core.models import PersistentMediaFile
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
 
 class Command(BaseCommand):
-    help = 'Scans MEDIA_ROOT and uploads all local media files into PersistentMediaFile in PostgreSQL.'
+    help = 'Scans local MEDIA_ROOT and uploads any media files to the configured object storage backend.'
 
     def handle(self, *args, **options):
         media_root = settings.MEDIA_ROOT
@@ -28,21 +28,17 @@ class Command(BaseCommand):
                     with open(full_path, 'rb') as f:
                         file_bytes = f.read()
 
-                    content_type, _ = mimetypes.guess_type(full_path)
-                    content_type = content_type or 'application/octet-stream'
+                    if not default_storage.exists(rel_path):
+                        default_storage.save(rel_path, ContentFile(file_bytes))
+                        self.stdout.write(self.style.SUCCESS(f"Uploaded to storage: {rel_path} ({len(file_bytes)} bytes)"))
+                    else:
+                        self.stdout.write(self.style.WARNING(f"Already in storage: {rel_path}"))
 
-                    PersistentMediaFile.objects.update_or_create(
-                        file_path=rel_path,
-                        defaults={
-                            'data': file_bytes,
-                            'content_type': content_type,
-                            'size': len(file_bytes),
-                        }
-                    )
                     synced_count += 1
                     total_bytes += len(file_bytes)
-                    self.stdout.write(self.style.SUCCESS(f"Synced: {rel_path} ({len(file_bytes)} bytes)"))
                 except Exception as e:
                     self.stdout.write(self.style.ERROR(f"Failed to sync {rel_path}: {e}"))
 
-        self.stdout.write(self.style.SUCCESS(f"Successfully synced {synced_count} media files ({total_bytes / (1024*1024):.2f} MB) to database!"))
+        self.stdout.write(self.style.SUCCESS(
+            f"Successfully synced {synced_count} media file(s) ({total_bytes / (1024 * 1024):.2f} MB) to object storage!"
+        ))

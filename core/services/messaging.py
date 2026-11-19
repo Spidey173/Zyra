@@ -58,13 +58,13 @@ def send_message(sender, conversation_id, content='', image=None, voice_note=Non
 
     # Validate image
     if image:
-        validate_media_file(image, media_types=('image',), max_size_mb=15)
+        validate_media_file(image, media_types=('image',), max_size_mb=10)
         from ..utils.media import compress_and_optimize_image
         image = compress_and_optimize_image(image, max_dimension=1600, quality=85)
 
     # Validate voice note
     if voice_note:
-        validate_media_file(voice_note, media_types=('audio',), max_size_mb=25)
+        validate_media_file(voice_note, media_types=('audio',), max_size_mb=10)
 
     # Validate shared post
     shared_post = None
@@ -345,7 +345,7 @@ def update_conversation_theme(conversation_id, user, theme_key='default', custom
 
     if custom_image:
         from ..utils.media import validate_media_file, compress_and_optimize_image
-        validate_media_file(custom_image, media_types=('image',), max_size_mb=20)
+        validate_media_file(custom_image, media_types=('image',), max_size_mb=10)
         custom_image = compress_and_optimize_image(custom_image, max_dimension=1920, quality=85)
         conversation.custom_theme_image = custom_image
         conversation.theme_key = 'custom'

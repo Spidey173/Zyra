@@ -49,35 +49,61 @@ def get_media_url(file_field, default_url=None):
 
 
 ALLOWED_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
-ALLOWED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.webm', '.avi', '.m4v'}
-ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.aac', '.ogg', '.oga', '.webm', '.weba', '.mp4', '.caf'}
+ALLOWED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.webm', '.avi', '.m4v', '.mkv'}
+ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.aac', '.ogg', '.oga', '.webm', '.weba', '.caf', '.flac'}
+
+ALLOWED_IMAGE_MIMETYPES = {
+    'image/jpeg', 'image/pjpeg', 'image/png', 'image/webp', 'image/gif'
+}
+ALLOWED_VIDEO_MIMETYPES = {
+    'video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-m4v', 'video/x-matroska'
+}
+ALLOWED_AUDIO_MIMETYPES = {
+    'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
+    'audio/aac', 'audio/mp4', 'audio/m4a', 'audio/x-m4a', 'audio/ogg',
+    'audio/webm', 'audio/x-caf', 'audio/flac'
+}
 
 def validate_media_file(file_obj, media_types=('image',), max_size_mb=50):
     """
-    Validates uploaded file size and extension.
+    Validates uploaded file size, extension, and content-type whitelist.
     Raises ValidationError if invalid.
     """
     if not file_obj:
         return True
 
-    # Validate size
+    # 1. Validate file size
     max_bytes = max_size_mb * 1024 * 1024
     if hasattr(file_obj, 'size') and file_obj.size > max_bytes:
         raise ValidationError(f"File size exceeds maximum allowed limit of {max_size_mb} MB.")
 
-    # Validate extension
+    # 2. Validate file extension
     name = getattr(file_obj, 'name', '')
     ext = os.path.splitext(name)[1].lower() if name else ''
     allowed_exts = set()
+    allowed_mimes = set()
+
     if 'image' in media_types:
         allowed_exts.update(ALLOWED_IMAGE_EXTENSIONS)
+        allowed_mimes.update(ALLOWED_IMAGE_MIMETYPES)
     if 'video' in media_types:
         allowed_exts.update(ALLOWED_VIDEO_EXTENSIONS)
+        allowed_mimes.update(ALLOWED_VIDEO_MIMETYPES)
     if 'audio' in media_types:
         allowed_exts.update(ALLOWED_AUDIO_EXTENSIONS)
+        allowed_mimes.update(ALLOWED_AUDIO_MIMETYPES)
 
     if ext and ext not in allowed_exts:
         raise ValidationError(f"Unsupported file extension '{ext}'. Allowed: {', '.join(sorted(allowed_exts))}")
+
+    # 3. Validate content-type header/attribute
+    content_type = getattr(file_obj, 'content_type', None)
+    if content_type:
+        clean_content_type = content_type.lower().split(';')[0].strip()
+        # Handle special browser MediaRecorder recordings where webm audio may have video/webm or application/octet-stream
+        is_audio_webm = ('audio' in media_types and clean_content_type in ('video/webm', 'application/octet-stream') and ext in ('.webm', '.weba'))
+        if not is_audio_webm and clean_content_type not in allowed_mimes:
+            raise ValidationError(f"Unsupported content-type '{clean_content_type}'. Allowed types: {', '.join(sorted(allowed_mimes))}")
 
     return True
 

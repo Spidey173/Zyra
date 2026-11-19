@@ -9,7 +9,6 @@ from .profile import user_profile, follow_user, followers_list, following_list
 from .reels import reels_view
 from .stories import create_story_view, delete_story_view
 from .api import explore_view, notifications_view
-from .media_server import serve_media_view
 
 __all__ = [
     'landing', 'register_view', 'login_view', 'logout_view',
@@ -19,5 +18,4 @@ __all__ = [
     'set_conversation_theme_api',
     'user_profile', 'follow_user', 'followers_list', 'following_list',
     'reels_view', 'create_story_view', 'delete_story_view', 'explore_view', 'notifications_view',
-    'serve_media_view',
 ]

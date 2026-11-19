@@ -147,6 +147,48 @@ class DirectMessagingTests(TestCase):
         self.assertTrue(generated_path.startswith('test_folder/'))
         self.assertTrue(generated_path.endswith('.png'))
 
+    def test_media_content_type_and_size_validation(self):
+        # Valid image with image/png
+        png_file = SimpleUploadedFile("pic.png", b"\x89PNG\r\n\x1a\n", content_type="image/png")
+        self.assertTrue(validate_media_file(png_file, media_types=('image',), max_size_mb=5))
+
+        # Valid video with video/mp4
+        mp4_file = SimpleUploadedFile("clip.mp4", b"video data", content_type="video/mp4")
+        self.assertTrue(validate_media_file(mp4_file, media_types=('video',), max_size_mb=50))
+
+        # Valid audio with audio/mpeg
+        mp3_file = SimpleUploadedFile("audio.mp3", b"audio data", content_type="audio/mpeg")
+        self.assertTrue(validate_media_file(mp3_file, media_types=('audio',), max_size_mb=10))
+
+        # Spoofed MIME type: .jpg extension with malicious content type
+        bad_mime = SimpleUploadedFile("photo.jpg", b"bad", content_type="application/x-sh")
+        with self.assertRaises(ValidationError):
+            validate_media_file(bad_mime, media_types=('image',), max_size_mb=10)
+
+        # File exceeding size limit
+        oversized = SimpleUploadedFile("huge.jpg", b"x" * (6 * 1024 * 1024), content_type="image/jpeg")
+        with self.assertRaises(ValidationError):
+            validate_media_file(oversized, media_types=('image',), max_size_mb=5)
+
+    def test_persistent_media_and_serve_media_removed(self):
+        import core.models as core_models
+        self.assertFalse(hasattr(core_models, 'PersistentMediaFile'), "PersistentMediaFile must be removed from models")
+
+        import core.views as core_views
+        self.assertFalse(hasattr(core_views, 'serve_media_view'), "serve_media_view must be removed from views")
+
+    def test_storage_settings_and_command(self):
+        from django.conf import settings
+        from django.core.management import call_command
+        import io
+
+        self.assertIn('storages', settings.INSTALLED_APPS)
+        self.assertIn('default', settings.STORAGES)
+
+        out = io.StringIO()
+        call_command('migrate_media_to_storage', stdout=out)
+        self.assertIn("Nothing to migrate", out.getvalue())
+
     def test_cloudinary_media_storage(self):
         from core.storage import CloudinaryMediaStorage
         from django.core.files.base import ContentFile

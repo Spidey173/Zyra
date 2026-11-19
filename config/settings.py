@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
     'core',
 ]
 
@@ -220,9 +221,27 @@ LOGOUT_REDIRECT_URL = 'landing'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# S3 / Cloudflare R2 / Object Storage Configuration (via django-storages)
+USE_S3 = os.environ.get('USE_S3', 'False').lower() in ('true', '1', 'yes') or bool(os.environ.get('AWS_STORAGE_BUCKET_NAME'))
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')
+AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'auto')
+AWS_DEFAULT_ACL = None
+AWS_S3_FILE_OVERWRITE = False
+
+if USE_S3 and AWS_STORAGE_BUCKET_NAME:
+    DEFAULT_STORAGE_BACKEND = "storages.backends.s3boto3.S3Boto3Storage"
+elif CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    DEFAULT_STORAGE_BACKEND = "core.storage.CloudinaryMediaStorage"
+else:
+    DEFAULT_STORAGE_BACKEND = "django.core.files.storage.FileSystemStorage"
+
 STORAGES = {
     "default": {
-        "BACKEND": "core.storage.CloudinaryMediaStorage",
+        "BACKEND": DEFAULT_STORAGE_BACKEND,
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",

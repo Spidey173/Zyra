@@ -56,7 +56,7 @@ class UserProfileForm(forms.ModelForm):
         pic = self.cleaned_data.get('profile_pic')
         if pic:
             from .utils.media import validate_media_file, compress_and_optimize_image
-            validate_media_file(pic, media_types=('image',), max_size_mb=10)
+            validate_media_file(pic, media_types=('image',), max_size_mb=5)
             if hasattr(pic, 'file'):
                 return compress_and_optimize_image(pic, max_dimension=800, quality=85)
         return pic
