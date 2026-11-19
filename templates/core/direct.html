@@ -1711,6 +1711,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 wsRetryCount = 0;
                 const statusBadge = document.getElementById('wsLiveStatus');
                 if (statusBadge) statusBadge.classList.remove('d-none');
+
+                // If reconnecting with known message history, sync any missed messages
+                if (window.latestMessageId && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                    try {
+                        chatSocket.send(JSON.stringify({
+                            action: 'reconnect',
+                            last_message_id: window.latestMessageId
+                        }));
+                    } catch (e) {}
+                }
             };
 
             chatSocket.onmessage = function(e) {
@@ -1742,6 +1752,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function handleSocketEvent(data) {
         if (!data || !data.type) return;
+
+        if (data.type === 'sync_history' && Array.isArray(data.messages)) {
+            data.messages.forEach(msg => {
+                if (msg && msg.id) {
+                    window.latestMessageId = Math.max(window.latestMessageId || 0, msg.id);
+                    appendMessageDOM(msg, false);
+                }
+            });
+            if (data.messages.length > 0) scrollToBottom(true);
+            return;
+        }
 
         if (data.type === 'new_message') {
             hideTypingIndicator();

@@ -55,3 +55,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Successfully migrated {migrated_count} media file(s) ({total_bytes / (1024 * 1024):.2f} MB) to object storage!"
         ))
+

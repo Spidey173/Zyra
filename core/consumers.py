@@ -14,65 +14,89 @@ from .serializers import serialize_message
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
-        self.user = self.scope["user"]
-        self.conversation_id = self.scope["url_route"]["kwargs"]["conversation_id"]
-        self.room_group_name = f"chat_{self.conversation_id}"
+        self.user = self.scope.get("user")
+        url_route = self.scope.get("url_route", {})
+        self.conversation_id = url_route.get("kwargs", {}).get("conversation_id")
+        self.room_group_name = f"chat_{self.conversation_id}" if self.conversation_id else None
 
-        # Reject unauthenticated users
-        if not self.user.is_authenticated:
-            await self.close(code=4001)
+        # 1. Strict Auth Check: Reject unauthenticated or anonymous users immediately
+        if not self.user or not self.user.is_authenticated:
+            await self.close(code=4401)
             return
 
-        # Verify user is a participant of this conversation
+        # 2. Validate Conversation ID
+        if not self.conversation_id:
+            await self.close(code=4400)
+            return
+
+        # 3. Verify user is an authorized participant of this conversation
         is_participant = await self.check_participant()
         if not is_participant:
-            await self.close(code=4003)
+            await self.close(code=4403)
             return
 
-        # Join conversation room group
+        # 4. Join conversation room group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
         await self.accept()
 
-        # Mark conversation as read on connection
-        await self.mark_read_in_db()
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "messages_read",
-                "reader_username": self.user.username,
-                "conversation_id": self.conversation_id
-            }
-        )
-        # Broadcast online presence
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "user_status_changed",
-                "username": self.user.username,
-                "is_online": True,
-                "status_text": "Active now"
-            }
-        )
+        # 5. Send connection confirmation with sync metadata for client reconnects
+        await self.send_json({
+            "type": "connection_established",
+            "conversation_id": self.conversation_id,
+            "user_id": self.user.id,
+            "username": self.user.username
+        })
 
-    async def disconnect(self, close_code):
-        # Broadcast offline presence and leave group
-        if hasattr(self, 'room_group_name'):
+        # Mark conversation as read on connection
+        try:
+            await self.mark_read_in_db()
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "messages_read",
+                    "reader_username": self.user.username,
+                    "conversation_id": self.conversation_id
+                }
+            )
+            # Broadcast online presence
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
                     "type": "user_status_changed",
                     "username": self.user.username,
-                    "is_online": False,
-                    "status_text": "Active just now"
+                    "is_online": True,
+                    "status_text": "Active now"
                 }
             )
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name
-            )
+        except Exception:
+            pass
+
+    async def disconnect(self, close_code):
+        # Gracefully broadcast offline presence and leave group
+        if hasattr(self, 'room_group_name') and self.room_group_name and hasattr(self, 'channel_name'):
+            try:
+                if self.user and self.user.is_authenticated:
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            "type": "user_status_changed",
+                            "username": self.user.username,
+                            "is_online": False,
+                            "status_text": "Active just now"
+                        }
+                    )
+            except Exception:
+                pass
+            try:
+                await self.channel_layer.group_discard(
+                    self.room_group_name,
+                    self.channel_name
+                )
+            except Exception:
+                pass
 
     async def user_status_changed(self, event):
         if event["username"] != self.user.username:
@@ -84,7 +108,28 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             })
 
     async def receive_json(self, content):
+        # Enforce auth verification on incoming payloads
+        if not self.user or not self.user.is_authenticated:
+            await self.close(code=4401)
+            return
+
         action = content.get("action")
+
+        # Heartbeat ping/pong for connection liveness
+        if action == "ping":
+            await self.send_json({"type": "pong"})
+            return
+
+        # Reconnect sync: delivers messages received while client was offline
+        elif action in ("reconnect", "sync"):
+            last_message_id = content.get("last_message_id")
+            missed_messages = await self.get_missed_messages(last_message_id)
+            await self.send_json({
+                "type": "sync_history",
+                "conversation_id": self.conversation_id,
+                "messages": missed_messages
+            })
+            return
 
         if action == "send_message":
             text = content.get("content", "").strip()
@@ -310,3 +355,13 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             "theme_key": conv.theme_key,
             "custom_theme_image_url": conv.get_custom_theme_image_url
         }
+
+    @database_sync_to_async
+    def get_missed_messages(self, last_message_id):
+        from .services.messaging import get_conversation_messages
+        try:
+            conv = Conversation.objects.get(id=self.conversation_id)
+            msgs = get_conversation_messages(conv, self.user, since_id=last_message_id, limit=50)
+            return [serialize_message(m, self.user) for m in msgs]
+        except Exception:
+            return []

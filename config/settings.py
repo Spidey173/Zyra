@@ -137,7 +137,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # Channel Layers for WebSockets
-REDIS_URL = os.environ.get('REDIS_URL')
+# Require REDIS_URL in production (channels_redis); InMemoryChannelLayer allowed only when DEBUG=True
+REDIS_URL = os.environ.get('REDIS_URL') or os.environ.get('REDIS_TLS_URL')
 if REDIS_URL:
     CHANNEL_LAYERS = {
         "default": {
@@ -147,12 +148,18 @@ if REDIS_URL:
             },
         },
     }
-else:
+elif DEBUG:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels.layers.InMemoryChannelLayer"
         }
     }
+else:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        "REDIS_URL environment variable is required in production for channels_redis. "
+        "InMemoryChannelLayer is only allowed when DEBUG=True."
+    )
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases

@@ -44,3 +44,4 @@ class Migration(migrations.Migration):
             reverse_code=migrate_persistent_media_reverse
         ),
     ]
+

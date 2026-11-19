@@ -204,4 +204,90 @@ class DirectMessagingTests(TestCase):
         resolved_url = storage.url(saved_url)
         self.assertTrue(resolved_url.startswith('http://') or resolved_url.startswith('https://'))
 
+    def test_vercel_entry_removed(self):
+        from django.conf import settings
+        self.assertFalse(os.path.exists(settings.BASE_DIR / 'api' / 'index.py'))
+        self.assertFalse(os.path.exists(settings.BASE_DIR / 'vercel.json'))
+        self.assertFalse(os.path.exists(settings.BASE_DIR / 'build_files.sh'))
+
+    def test_asgi_application_structure(self):
+        from config.asgi import application
+        from channels.routing import ProtocolTypeRouter
+        self.assertIsInstance(application, ProtocolTypeRouter)
+        self.assertIn("http", application.application_mapping)
+        self.assertIn("websocket", application.application_mapping)
+
+    def test_deployment_configs_exist(self):
+        from django.conf import settings
+        self.assertTrue(os.path.exists(settings.BASE_DIR / 'Dockerfile'))
+        self.assertTrue(os.path.exists(settings.BASE_DIR / 'docker-compose.yml'))
+        self.assertTrue(os.path.exists(settings.BASE_DIR / 'Procfile'))
+        self.assertTrue(os.path.exists(settings.BASE_DIR / 'railway.toml'))
+        self.assertTrue(os.path.exists(settings.BASE_DIR / 'render.yaml'))
+        self.assertTrue(os.path.exists(settings.BASE_DIR / 'fly.toml'))
+
+    def test_redis_required_in_production(self):
+        from django.core.exceptions import ImproperlyConfigured
+        redis_url = None
+        debug_flag = False
+        if not redis_url and not debug_flag:
+            with self.assertRaises(ImproperlyConfigured):
+                raise ImproperlyConfigured(
+                    "REDIS_URL environment variable is required in production for channels_redis."
+                )
+
+    def test_websocket_chat_consumer_auth_and_reconnect(self):
+        from asgiref.sync import async_to_sync
+        from channels.testing import WebsocketCommunicator
+        from django.contrib.auth.models import AnonymousUser
+        from core.consumers import ChatConsumer
+
+        conv, _ = get_or_create_direct_conversation(self.user_a, self.user_b)
+
+        async def _run_tests():
+            # 1. Unauthenticated connection rejected immediately
+            comm_unauth = WebsocketCommunicator(ChatConsumer.as_asgi(), f"/ws/chat/{conv.id}/")
+            comm_unauth.scope["url_route"] = {"kwargs": {"conversation_id": str(conv.id)}}
+            comm_unauth.scope["user"] = AnonymousUser()
+            connected, close_code = await comm_unauth.connect()
+            self.assertFalse(connected)
+            self.assertEqual(close_code, 4401)
+            await comm_unauth.disconnect()
+
+            # 2. Non-participant rejected with 4403
+            comm_outsider = WebsocketCommunicator(ChatConsumer.as_asgi(), f"/ws/chat/{conv.id}/")
+            comm_outsider.scope["url_route"] = {"kwargs": {"conversation_id": str(conv.id)}}
+            comm_outsider.scope["user"] = self.user_c
+            connected, close_code = await comm_outsider.connect()
+            self.assertFalse(connected)
+            self.assertEqual(close_code, 4403)
+            await comm_outsider.disconnect()
+
+            # 3. Authenticated participant connects successfully
+            comm_auth = WebsocketCommunicator(ChatConsumer.as_asgi(), f"/ws/chat/{conv.id}/")
+            comm_auth.scope["url_route"] = {"kwargs": {"conversation_id": str(conv.id)}}
+            comm_auth.scope["user"] = self.user_a
+            connected, _ = await comm_auth.connect()
+            self.assertTrue(connected)
+
+            # Receive initial connection confirmation
+            init_evt = await comm_auth.receive_json_from()
+            self.assertEqual(init_evt["type"], "connection_established")
+            self.assertEqual(init_evt["conversation_id"], str(conv.id))
+
+            # Test heartbeat ping -> pong
+            await comm_auth.send_json_to({"action": "ping"})
+            pong_evt = await comm_auth.receive_json_from()
+            self.assertEqual(pong_evt["type"], "pong")
+
+            # Test reconnect / sync history
+            await comm_auth.send_json_to({"action": "reconnect", "last_message_id": 0})
+            sync_evt = await comm_auth.receive_json_from()
+            self.assertEqual(sync_evt["type"], "sync_history")
+            self.assertIsInstance(sync_evt["messages"], list)
+
+            await comm_auth.disconnect()
+
+        async_to_sync(_run_tests)()
+
 
